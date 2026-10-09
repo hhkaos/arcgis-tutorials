@@ -23,6 +23,23 @@ In this demo, we will build a small browser app that signs a user in with OAuth 
 
 </Intro>
 
+<Step id="how-oauth-works" embed="https://www.rauljimenez.info/oauth-workflow-arcgis" preview="collapsed">
+
+## How OAuth works
+
+These slides show the OAuth 2.0 flow end to end. Keep them in mind: each piece maps to a later step, such as the Client ID, the redirect URL (`oauth-callback.html`), and the tokens the SDK stores for you.
+
+<details>
+<summary>What is PKCE and why does this app use it?</summary>
+
+The SDK uses the authorization-code flow with PKCE (Proof Key for Code Exchange). Before sign-in, the app generates a random secret (the code verifier) and sends only its hash (the code challenge) to ArcGIS. When the authorization code comes back, the app sends the original verifier to exchange it for tokens.
+
+Browser apps cannot keep a client secret, so PKCE proves that the app redeeming the code is the same one that started the flow. An intercepted authorization code is useless without the verifier.
+
+</details>
+
+</Step>
+
 <Step id="load-sdk" file="index.html" region="cdn" preview="collapsed">
 
 ## Load the SDK
