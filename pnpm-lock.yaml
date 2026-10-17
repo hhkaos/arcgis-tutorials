@@ -12,8 +12,8 @@ importers:
         specifier: ^7.3.5
         version: 7.3.5(yaml@2.9.1)
       interactive-code-scroll:
-        specifier: 0.2.0-beta.1
-        version: 0.2.0-beta.1(astro@7.3.5(yaml@2.9.1))
+        specifier: 0.2.0-beta.8
+        version: 0.2.0-beta.8(astro@7.3.5(yaml@2.9.1))
 
 packages:
 
@@ -1035,8 +1035,12 @@ packages:
   http-cache-semantics@4.2.0:
     resolution: {integrity: sha512-dTxcvPXqPvXBQpq5dUr6mEMJX4oIEFv6bwom3FDwKRDsuIjjJGANqhBuoAn9c1RQJIdAKav33ED65E2ys+87QQ==}
 
-  interactive-code-scroll@0.2.0-beta.1:
-    resolution: {integrity: sha512-QswP7xDB7ulkstQA0TIr0zsg4dxnaVFFoA9dGkPWROGJ+4lsQiAfkws7RWatLlgiOmaPf4CoVhElNEC162x8Tw==}
+  ignore@7.0.12:
+    resolution: {integrity: sha512-/8UvqAPU9DGTI9k4mxtf49U37Isfwr8Uts96+SBHIkFxPJnHS0Ew4f00sM4Scd8V8EjM0jUNtVDdv1kPdt35lg==}
+    engines: {node: '>= 4'}
+
+  interactive-code-scroll@0.2.0-beta.8:
+    resolution: {integrity: sha512-KlsjdDmZPU6At+ZVOJv4ymZbi+cowKxnVjIpp6fIobEBNBDJP051fszitmppJ3bMCTYPV8CCrZuhdm3oJkS2wQ==}
     hasBin: true
     peerDependencies:
       astro: ^7.3.5
@@ -1268,6 +1272,9 @@ packages:
 
   property-information@7.2.0:
     resolution: {integrity: sha512-IAtzIB6sUiWaJYrX9smp3V46pBGbBeLFRGdh25kg1334VcBlD8HzhPeNIWQH9zhGmo2itIe25EHt9dQP7G5hmg==}
+
+  qrcode-generator@2.0.4:
+    resolution: {integrity: sha512-mZSiP6RnbHl4xL2Ap5HfkjLnmxfKcPWpWe/c+5XxCuetEenqmNFf1FH/ftXPCtFG5/TDobjsjz6sSNL0Sr8Z9g==}
 
   radix3@1.1.2:
     resolution: {integrity: sha512-b484I/7b8rDEdSDKckSSBA8knMpcdsXudlE/LNL639wFoHKwLbEkQFZHWEYwDC0wa0FKUcCY+GAF73Z7wxNVFA==}
@@ -2511,13 +2518,17 @@ snapshots:
 
   http-cache-semantics@4.2.0: {}
 
-  interactive-code-scroll@0.2.0-beta.1(astro@7.3.5(yaml@2.9.1)):
+  ignore@7.0.12: {}
+
+  interactive-code-scroll@0.2.0-beta.8(astro@7.3.5(yaml@2.9.1)):
     dependencies:
       '@astrojs/markdown-satteri': 0.4.3
       '@astrojs/mdx': 8.0.3(@astrojs/markdown-satteri@0.4.3)(astro@7.3.5(yaml@2.9.1))
       '@esri/calcite-components': 5.1.2
       astro: 7.3.5(yaml@2.9.1)
       fflate: 0.8.3
+      ignore: 7.0.12
+      qrcode-generator: 2.0.4
       satteri: 0.10.5
       shiki: 4.5.0
     transitivePeerDependencies:
@@ -2720,6 +2731,8 @@ snapshots:
   process-ancestry@0.1.0: {}
 
   property-information@7.2.0: {}
+
+  qrcode-generator@2.0.4: {}
 
   radix3@1.1.2: {}
 

@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "astro": "^7.3.5",
-    "interactive-code-scroll": "0.2.0-beta.1"
+    "interactive-code-scroll": "0.2.0-beta.8"
   },
   "packageManager": "pnpm@11.13.1"
 }
