@@ -1,0 +1,6 @@
+$ node app-auth.mjs
+Access token: 3NKHt6i2urmWtqOuugvr9TfqDxs_example_kC3JQ7Pq9yv6R6YIdwhVhNbCt5w..
+Expires: 2026-10-15T17:42:08.000Z
+Title: "Tutorial: App Authentication with ArcGIS REST JS"
+Has the following privileges:
+	- premium:user:basemaps

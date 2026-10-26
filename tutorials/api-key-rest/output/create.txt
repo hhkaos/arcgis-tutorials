@@ -1,0 +1,6 @@
+{
+  "access_token": "AAPTxy8BH1VEsoebNVZXo8HurDl2tkA94BPN_example_hTrcLHg.AT1_K9pLw4Zd",
+  "expires_in": 2591999
+}
+Item ID: a1f3c9e27b8d4e6f9c0b2d4e6f8a1c3e
+API key (slot 1): AAPTxy8BH1VEsoebNVZXo8HurDl2tkA94BPN_example_hTrcLHg.AT1_K9pLw4Zd

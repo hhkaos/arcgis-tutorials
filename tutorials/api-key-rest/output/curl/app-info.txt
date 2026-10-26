@@ -1,0 +1,18 @@
+$ VERBOSE=1 bash rotate-api-key.sh
+{
+  "access_token": "u7Qx2PfLk-Y9wd_example-app-token",
+  "expires_in": 7200
+}
+{
+  "itemId": "a1f3c9e27b8d4e6f9c0b2d4e6f8a1c3e",
+  "client_id": "Xq7RtB2mK9pLw4Zd",
+  "client_secret": "5e8f0a2c4b6d48e19f3a7c5e2b9d1f04",
+  "appType": "multiple",
+  "httpReferrers": [],
+  "privileges": [
+    "premium:user:basemaps",
+    "premium:user:geocode"
+  ],
+  "apiToken1Active": true,
+  "apiToken2Active": false
+}

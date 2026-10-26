@@ -1,0 +1,11 @@
+{
+  "name": "oauth-app-rest-js",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node app-auth.mjs"
+  },
+  "dependencies": {
+    "@esri/arcgis-rest-request": "^4.11.0"
+  }
+}

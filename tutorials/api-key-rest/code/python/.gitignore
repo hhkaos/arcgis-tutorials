@@ -1,0 +1,4 @@
+# Secrets (.env) and state written by the scripts
+.env
+state.json
+.venv/

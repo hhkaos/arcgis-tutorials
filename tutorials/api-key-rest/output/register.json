@@ -1,0 +1,18 @@
+{
+  "itemId": "a1f3c9e27b8d4e6f9c0b2d4e6f8a1c3e",
+  "client_id": "Xq7RtB2mK9pLw4Zd",
+  "client_secret": "5e8f0a2c4b6d48e19f3a7c5e2b9d1f04",
+  "appType": "multiple",
+  "redirect_uris": [
+    "urn:ietf:wg:oauth:2.0:oob"
+  ],
+  "registered": 1792000000000,
+  "modified": 1792000000000,
+  "httpReferrers": [],
+  "privileges": [
+    "premium:user:basemaps",
+    "premium:user:geocode"
+  ],
+  "isBeta": false,
+  "isPersonalAPIToken": false
+}

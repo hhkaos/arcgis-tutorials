@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>API Key Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one screen, no scroll. Left = the portal wizard screen; right = sequence diagram whose arrows
+   collect parameters step by step, then fire on confirm. Click an arrow → drawer with the full request. */
+:root {
+  /* Calcite-inspired tokens (light) */
+  --bg: #f8f8f8;
+  --surface: #ffffff;
+  --surface-2: #f3f3f3;
+  --code-bg: #f4f6f8;
+  --text-1: #151515;
+  --text-2: #4a4a4a;
+  --text-3: #6a6a6a;
+  --border: #dfdfdf;
+  --border-strong: #cacaca;
+  --ghost: #b9c0c6;
+  --brand: #007ac2;
+  --brand-hover: #00619b;
+  --brand-soft: #e5f2fa;
+  --on-brand: #ffffff;
+  --success: #24823a;
+  --success-soft: #e6f4e8;
+  --warning-bg: #fff6cc;
+  --warning-fg: #6b5800;
+  --danger: #c12c1b;
+
+  --font-ui: "Avenir Next", "Avenir", "Nunito Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --fs-xs: .75rem; --fs-s: .875rem; --fs-m: 1rem; --fs-l: 1.2rem; --fs-xl: 1.5rem;
+  --radius: 4px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #2b2b2b; --surface: #353535; --surface-2: #404040; --code-bg: #232527;
+  --text-1: #ffffff; --text-2: #d4d4d4; --text-3: #a8a8a8;
+  --border: #4a4a4a; --border-strong: #5c5c5c; --ghost: #666d73;
+  --brand: #3db6ff; --brand-hover: #75caff; --brand-soft: #18374a; --on-brand: #0b1e2a;
+  --success: #57d36a; --success-soft: #1d3a22; --warning-bg: #4a3f00; --warning-fg: #ffe066; --danger: #ff7a66;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #2b2b2b; --surface: #353535; --surface-2: #404040; --code-bg: #232527;
+  --text-1: #ffffff; --text-2: #d4d4d4; --text-3: #a8a8a8;
+  --border: #4a4a4a; --border-strong: #5c5c5c; --ghost: #666d73;
+  --brand: #3db6ff; --brand-hover: #75caff; --brand-soft: #18374a; --on-brand: #0b1e2a;
+  --success: #57d36a; --success-soft: #1d3a22; --warning-bg: #4a3f00; --warning-fg: #ffe066; --danger: #ff7a66;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--text-1); font-family: var(--font-ui); font-size: var(--fs-m); line-height: 1.4; }
+.app { height: 100%; display: flex; flex-direction: column; gap: 10px; padding-inline: clamp(16px, 2vw, 28px); padding-block: 12px 0; }
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.2; }
+code { font-family: var(--font-mono); font-size: .9em; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* Header */
+header.top { flex: none; display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: end; justify-content: space-between; }
+.eyebrow { font-size: var(--fs-xs); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+h1 { font-size: var(--fs-xl); font-weight: 600; }
+.controls-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; padding: 4px 11px; font-size: var(--fs-s); cursor: pointer; border-inline-end: 1px solid var(--border); }
+.seg button:last-child { border-inline-end: 0; }
+.seg button[aria-pressed="true"] { background: var(--brand); color: var(--on-brand); font-weight: 600; }
+.label { font-size: var(--fs-xs); color: var(--text-3); }
+
+/* Phase bar */
+.phases { flex: none; display: flex; gap: 6px; overflow-x: auto; }
+.phase { display: grid; gap: 3px; flex: 1 1 auto; min-width: max-content; }
+.phase-h { font-size: var(--fs-xs); font-weight: 700; color: var(--text-3); white-space: nowrap; }
+.phase-h em { font-style: normal; font-weight: 400; }
+.phase.current .phase-h { color: var(--brand); }
+.phase.p2.current .phase-h { color: var(--success); }
+.pills { display: flex; gap: 2px; }
+.pill { flex: 1 1 0; border: 1px solid var(--border); background: var(--surface); cursor: pointer; padding: 4px 8px; font-size: var(--fs-xs); white-space: nowrap; color: var(--text-3); }
+.pills .pill:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.pills .pill:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.pill.done { color: var(--text-1); background: var(--surface-2); }
+.pill[aria-current="step"] { background: var(--brand); border-color: var(--brand); color: var(--on-brand); font-weight: 700; }
+.p2 .pill.done { background: var(--success-soft); }
+.p2 .pill[aria-current="step"] { background: var(--success); border-color: var(--success); color: var(--surface); }
+
+/* Main split */
+.main { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 9fr) minmax(0, 11fr); gap: 14px; }
+.col { min-height: 0; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.col-h { flex: none; display: flex; gap: 8px; align-items: baseline; justify-content: space-between; padding: 8px 14px; border-bottom: 1px solid var(--border); }
+.col-h h2 { font-size: var(--fs-xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
+@media (max-width: 900px) {
+  html, body { height: auto; }
+  .app { height: auto; padding-block-end: 80px; }
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .shot-box { min-height: 260px; }
+  .diagram { min-height: 560px; }
+}
+
+/* Left: portal */
+.portal { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; }
+.frame-head { flex: none; display: grid; gap: 3px; }
+.frame-head .eyebrow { color: var(--brand); }
+.is-p2 .frame-head .eyebrow { color: var(--success); }
+.frame-head h3 { font-size: var(--fs-l); font-weight: 600; }
+.frame-head p { margin: 0; color: var(--text-2); font-size: var(--fs-s); max-width: 68ch; }
+.shot-box { flex: 1 1 auto; min-height: 0; display: flex; gap: 8px; }
+.shot-box.multi { flex-direction: column; }
+.shot { flex: 1 1 0; min-width: 0; min-height: 0; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: 6px; cursor: zoom-in; display: flex; align-items: center; justify-content: center; }
+.shot img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+.shot { position: relative; }
+.badge { position: absolute; top: 10px; right: 10px; background: var(--brand); color: var(--on-brand); font-size: var(--fs-xs); font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.anim .badge { animation: appear .4s .3s both; }
+.no-shot { flex: 1; border: 1px dashed var(--border-strong); border-radius: var(--radius); display: grid; place-items: center; color: var(--text-2); font-size: var(--fs-s); padding: 16px; text-align: center; }
+.maps { flex: none; display: grid; gap: 4px; }
+.map { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-size: var(--fs-s); }
+.map .ui { font-weight: 700; }
+.map .sep { color: var(--text-3); }
+.map .dest { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--brand); }
+.map .dest.none { font-family: var(--font-ui); font-size: var(--fs-s); color: var(--text-3); font-style: italic; }
+.note { flex: none; font-size: var(--fs-xs); padding: 6px 10px; border-radius: var(--radius); background: var(--surface-2); color: var(--text-2); }
+.note strong { color: var(--text-1); }
+
+/* Right: sequence diagram (HTML, so labels wrap and arrows stay clickable) */
+.diagram { --l1: 9%; --l2: 90%; flex: 1 1 auto; min-height: 0; position: relative; display: grid; grid-template-rows: auto repeat(5, minmax(0, 1fr)); padding: 0 12px 10px; }
+.lifeline { position: absolute; top: 46px; bottom: 8px; width: 0; border-left: 1px dashed var(--border-strong); }
+.lanes { position: relative; height: 46px; }
+.lane { position: absolute; top: 8px; transform: translateX(-50%); text-align: center; white-space: nowrap; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 3px 10px; }
+.lane b { display: block; font-size: var(--fs-s); }
+.lane span { display: block; font-family: var(--font-mono); font-size: .68rem; color: var(--text-3); }
+
+.row { position: relative; border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; border-radius: var(--radius); min-height: 0; }
+.row:hover { background: var(--surface-2); }
+.row.touched { background: var(--brand-soft); }
+.row.now { background: var(--success-soft); }
+.row .num { position: absolute; left: 0; top: 10px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: .7rem; font-weight: 700; border: 1px solid var(--ghost); color: var(--text-3); background: var(--surface); }
+.row.sent .num, .row.now .num { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
+.row .lbl { position: absolute; top: 4px; left: calc(var(--l1) + 8px); right: 8px; display: flex; gap: 8px; align-items: baseline; font-size: var(--fs-s); }
+.row .lbl code { color: var(--text-3); }
+.row.sent .lbl code, .row.now .lbl code, .row.touched .lbl code { color: var(--text-1); font-weight: 500; }
+.row .count { margin-inline-start: auto; font-size: var(--fs-xs); color: var(--text-3); white-space: nowrap; }
+.row .count.ok { color: var(--success); font-weight: 700; }
+.row .count .bar { display: inline-block; vertical-align: middle; width: 42px; height: 4px; border-radius: 2px; background: var(--border); margin-inline-start: 6px; overflow: hidden; position: relative; }
+.row .count .bar i { position: absolute; inset: 0 auto 0 0; background: var(--brand); }
+.arrow { position: absolute; top: 28px; left: var(--l1); height: 0; border-top: 2px dashed var(--ghost); }
+.arrow::after { content: ""; position: absolute; right: -2px; top: -6px; border: 5px solid transparent; border-left: 8px solid var(--ghost); border-right: 0; }
+.row.to-portal .arrow { width: calc(var(--l2) - var(--l1)); }
+.row.touched .arrow { border-top-color: var(--brand); }
+.row.touched .arrow::after { border-left-color: var(--brand); }
+.row.sent .arrow { border-top-style: solid; border-top-color: var(--text-3); }
+.row.sent .arrow::after { border-left-color: var(--text-3); }
+.row.now .arrow { border-top-style: solid; border-top-color: var(--brand); }
+.row.now .arrow::after { border-left-color: var(--brand); }
+.ret { position: absolute; top: 44px; left: var(--l1); height: 0; border-top: 2px dashed var(--success); }
+.ret::before { content: ""; position: absolute; left: -2px; top: -6px; border: 5px solid transparent; border-right: 8px solid var(--success); border-left: 0; }
+.row.sent .ret { border-top-color: var(--text-3); }
+.row.sent .ret::before { border-right-color: var(--text-3); }
+.row.to-portal .ret { width: calc(var(--l2) - var(--l1)); }
+.ret-lbl { position: absolute; top: 47px; font-size: var(--fs-xs); white-space: nowrap; color: var(--success); font-weight: 700; }
+.row.sent .ret-lbl { color: var(--text-3); font-weight: 400; }
+.row.to-portal .ret-lbl { right: calc(100% - var(--l2) + 8px); }
+.ret-lbl code { font-weight: 500; }
+.adds { position: absolute; top: 36px; left: calc(var(--l1) + 8px); right: 8px; display: grid; gap: 2px; }
+.row.now .adds, .row.sent .adds { display: none; }
+.add { display: flex; gap: 6px; align-items: baseline; min-width: 0; font-family: var(--font-mono); font-size: .76rem; }
+.add .plus { color: var(--brand); font-weight: 700; }
+.add .k { color: var(--brand); font-weight: 500; white-space: nowrap; }
+.add .v { color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.add .src { color: var(--text-3); font-family: var(--font-ui); white-space: nowrap; }
+.add.more { color: var(--text-3); font-family: var(--font-ui); }
+.packet { position: absolute; top: 23px; left: var(--l1); width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--brand); opacity: 0; }
+.packet.back { top: 39px; background: var(--success); }
+
+/* Animations */
+.anim .row.now .arrow { clip-path: inset(-8px 100% -8px 0); animation: reveal .6s ease-out forwards; }
+.anim .row.now .ret, .anim .row.now .ret-lbl { opacity: 0; animation: appear .3s 1.3s forwards; }
+.anim .row.now .packet.go { animation: go .7s .6s ease-in-out forwards; }
+.anim .row.now .packet.back { animation: back .7s 1.4s ease-in-out forwards; }
+.anim .row.touched .add.fresh { animation: flash 1.1s .1s both; }
+.anim .row.touched .arrow { animation: pulse-line 1.1s .1s both; }
+@keyframes reveal { to { clip-path: inset(-8px 0 -8px 0); } }
+@keyframes appear { to { opacity: 1; } }
+@keyframes go { 0% { opacity: 1; left: var(--l1); } 90% { opacity: 1; } 100% { opacity: 0; left: var(--to); } }
+@keyframes back { 0% { opacity: 1; left: var(--to); } 90% { opacity: 1; } 100% { opacity: 0; left: var(--l1); } }
+@keyframes flash { from { background: var(--surface); outline: 2px solid var(--brand); } to { background: transparent; outline: 2px solid transparent; } }
+@keyframes pulse-line { from { opacity: .3; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .anim * { animation: none !important; clip-path: none !important; }
+  .anim .row.now .ret, .anim .row.now .ret-lbl { opacity: 1 !important; }
+}
+
+/* Dock */
+.dock { flex: none; display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px)); margin-inline: calc(clamp(16px, 2vw, 28px) * -1);
+  background: var(--surface); border-top: 1px solid var(--border); }
+@media (max-width: 900px) { .dock { position: fixed; inset-inline: 0; bottom: 0; margin: 0; z-index: 5; } }
+.btn { border: 1px solid var(--brand); background: var(--surface); color: var(--brand); padding: 5px 16px; border-radius: var(--radius); cursor: pointer; font-weight: 600; font-size: var(--fs-s); }
+.btn.primary { background: var(--brand); color: var(--on-brand); }
+.btn.primary:hover:not(:disabled) { background: var(--brand-hover); }
+.btn:disabled { opacity: .4; cursor: default; }
+.progress { font-size: var(--fs-s); color: var(--text-3); font-variant-numeric: tabular-nums; min-width: 6ch; text-align: center; }
+.kbd { font-size: var(--fs-xs); color: var(--text-3); }
+kbd { font-family: var(--font-mono); font-size: .7rem; border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; }
+@media (max-width: 600px) { .kbd { display: none; } }
+
+/* Drawer with the full request */
+dialog.drawer { margin: 0 0 0 auto; height: 100%; max-height: 100%; width: min(560px, 100%); border: 0; border-left: 1px solid var(--border); padding: 0; background: var(--surface); color: var(--text-1); }
+dialog.drawer::backdrop { background: rgb(0 0 0 / .35); }
+.dr { display: flex; flex-direction: column; height: 100%; }
+.dr-h { display: flex; gap: 10px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.dr-h h3 { font-size: var(--fs-m); font-weight: 700; flex: 1; }
+.dr-b { flex: 1; overflow: auto; padding: 14px 16px; display: grid; gap: 12px; align-content: start; }
+.x { border: 0; background: transparent; cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 4px 8px; color: var(--text-2); }
+.req-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-family: var(--font-mono); font-size: var(--fs-s); padding: 8px 10px; background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); overflow-wrap: anywhere; }
+.method { background: var(--brand); color: var(--on-brand); font-size: var(--fs-xs); padding: 1px 6px; border-radius: 3px; }
+.req-line .base { color: var(--text-3); }
+.sub-h { font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); font-weight: 700; }
+table.params { width: 100%; border-collapse: collapse; font-size: var(--fs-s); }
+.params td { padding: 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.params td:first-child { font-family: var(--font-mono); white-space: nowrap; color: var(--text-2); }
+.params td.v { font-family: var(--font-mono); font-size: .8rem; overflow-wrap: anywhere; }
+.params td.v.pending { font-family: var(--font-ui); font-style: italic; color: var(--text-3); }
+.params tr.key td:first-child { color: var(--brand); font-weight: 500; }
+.params .why { display: block; font-family: var(--font-ui); font-size: var(--fs-xs); color: var(--text-3); margin-top: 2px; }
+pre.json { margin: 0; padding: 10px; background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--font-mono); font-size: .78rem; line-height: 1.55; overflow-x: auto; }
+pre.json .k { color: var(--text-2); } pre.json .s { color: var(--success); } pre.json .n { color: var(--brand); } pre.json .dim { color: var(--text-3); }
+pre.json .hot { background: var(--brand-soft); display: inline-block; min-width: 100%; }
+pre.json .to { color: var(--brand); font-family: var(--font-ui); font-size: var(--fs-xs); font-weight: 700; }
+
+dialog.lb { border: 0; padding: 0; background: transparent; max-width: min(1100px, 94vw); }
+dialog.lb::backdrop { background: rgb(0 0 0 / .7); }
+dialog.lb img { display: block; max-width: 100%; max-height: 86vh; background: #fff; border-radius: var(--radius); }
+
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <div>
+      <div class="eyebrow">ArcGIS · API key credentials</div>
+      <h1 id="title">What the portal sends when you create an API key</h1>
+    </div>
+    <div class="controls-row">
+      <div><div class="label" id="lbl-flow">Flow</div>
+        <div class="seg" role="group" aria-labelledby="lbl-flow">
+          <button id="flow-create" aria-pressed="true">Create</button><button id="flow-rotate" aria-pressed="false">Rotate</button>
+        </div></div>
+      <div><div class="label" id="lbl-plat">Platform</div><div class="seg" role="group" aria-labelledby="lbl-plat" id="platforms"></div></div>
+    </div>
+  </header>
+
+  <nav class="phases" id="phases" aria-label="Steps"></nav>
+
+  <main class="main anim" id="view">
+    <section class="col" aria-label="In the portal">
+      <div class="col-h"><h2>In the portal</h2><span class="label" id="plat-hint"></span></div>
+      <div class="portal" id="portal"></div>
+    </section>
+    <section class="col" aria-label="Requests">
+      <div class="col-h"><h2>Requests</h2><span class="label">Click an arrow to see the full request</span></div>
+      <div class="diagram" id="diagram"></div>
+    </section>
+  </main>
+
+  <div class="dock" id="dock">
+    <button class="btn" id="prev">Back</button>
+    <span class="progress" id="progress" aria-live="polite"></span>
+    <button class="btn primary" id="next">Next</button>
+    <button class="btn" id="play" aria-pressed="false">Play</button>
+    <span class="kbd"><kbd>←</kbd> <kbd>→</kbd> step · <kbd>R</kbd> replay</span>
+  </div>
+</div>
+
+<dialog class="drawer" id="drawer"><div class="dr"><div class="dr-h"><h3 id="dr-title"></h3><button class="x" id="dr-close" aria-label="Close">×</button></div><div class="dr-b" id="dr-body"></div></div></dialog>
+<dialog class="lb" id="lb"><img id="lb-img" alt=""></dialog>
+
+<script>
+(() => {
+  /* ---------- Example values (fictitious, consistent across requests) ---------- */
+  // Dates of the screenshots (taken 2026-10-15): slot 1 = +30 days, slot 2 = +60 days
+  const shotDay = new Date(2026, 9, 15).getTime();
+  const expMs = new Date(2026, 10, 14, 23, 59, 59).getTime();
+  const expMs2 = new Date(2026, 11, 14, 23, 59, 59).getTime();
+  const expIn = Math.round((expMs - shotDay) / 1000);
+  const V = {
+    token: "u7Qx2PfLk-Y9wd…example-user-token",
+    item_id: "a1f3c9e27b8d4e6f9c0b2d4e6f8a1c3e",
+    client_id: "Xq7RtB2mK9pLw4Zd",
+    client_secret: "5e8f0a2c4b6d48e19f3a7c5e2b9d1f04",
+    api_key: "AAPTxy8BH1VEsoebNVZXo8Hur…hTrcLHg.AT1_K9pLw4Zd",
+    api_key2: "AAPTk3Lm9QzR2vWs8EoYbN4tH…pQ5nZwB.AT2_K9pLw4Zd",
+  };
+  const ITEM_PRIV = "portal:app:access:item:516a4af1886645a0b9f28438f5347d11";
+
+  const PLATFORMS = {
+    online:     { name: "ArcGIS Online", base: "https://www.arcgis.com/sharing/rest",
+                  privileges: ["premium:user:basemaps", "premium:user:geocode"] },
+    location:   { name: "ArcGIS Location Platform", base: "https://www.arcgis.com/sharing/rest",
+                  privileges: ["premium:user:basemaps", "premium:user:geocode"] },
+    enterprise: { name: "ArcGIS Enterprise", base: "https://gis.example.com/portal/sharing/rest",
+                  privileges: ["premium:user:geocode", "premium:user:networkanalysis"],
+                  privsNote: "<strong>Screenshot from ArcGIS Online.</strong> ArcGIS Enterprise has no basemaps privilege, so this example enables <strong>Geocoding</strong> and <strong>Routing</strong> instead." },
+  };
+
+  /* ---------- Frames: wizard in its real order, then the burst of requests ---------- */
+  const signinFrame = (dest) => ({ id: "signin", phase: 0, pill: "Sign in", sends: "signin", title: "Sign in to the portal",
+      text: "The account needs Creator (or higher) plus the privileges Generate API keys and Assign privileges to OAuth 2.0 applications.",
+      shots: ["sign-in.png"], maps: [{ ui: "Your session", dest: "token → " + dest }] });
+  // phase 0 = before, 1 = fill wizard (nothing sent), 2 = confirm → 3 requests, 3 = item page → key
+  const CREATE_F = [
+    signinFrame("requests 1–3"),
+    { id: "new", phase: 1, pill: "New item", title: "Content › My content › New item",
+      text: "From here until you confirm, the portal only collects answers. Watch the arrows on the right fill up.",
+      shots: ["new-item-button.png"], maps: [] },
+    { id: "type", phase: 1, pill: "Credential type", title: "Developer credentials › API key credentials",
+      text: "This sets the item type. Other values, like appType or grant_type, are fixed: no screen asks for them.",
+      shots: ["credential-type-apikey.png"],
+      maps: [{ ui: "API key credentials", dest: "addItem · type = Application" }] },
+    { id: "intent", phase: 1, pill: "Public / private", title: "Where will you use these credentials?",
+      text: "Public application limits the next screen to location-service privileges.",
+      shots: ["intent-menu-apikey.png"],
+      maps: [{ ui: "Public application", dest: "No parameter. It only filters the privilege list.", none: true }] },
+    { id: "items", phase: 1, pill: "Item access", title: "Item access (optional)",
+      text: "Up to 100 items the key can read.",
+      shots: ["item-selection.png"],
+      badge: "✓ Codemotion Map (Based in Navigation) selected",
+      maps: [{ ui: "✓ Codemotion Map (Based in Navigation)", dest: "privileges + portal:app:access:item:{itemId}" }],
+      note: { text: "<strong>Seen in a network capture:</strong> item access is only this privilege. The wizard doesn't call <code>addRelationship</code>." } },
+    { id: "privs", phase: 1, pill: "Privileges", title: "Privileges",
+      text: "Each enabled toggle adds one privilege string. Enable only what the app calls.",
+      shots: ["select-priv-apikey-online.png"],
+      maps: [{ ui: "Enabled toggles", dest: "privileges" }] },
+    { id: "exp", phase: 1, pill: "Settings", title: "Settings: expiration date and referrers",
+      text: "Neither can change later without invalidating the key.",
+      shots: ["expiration-date-key-and-referrers.png"],
+      maps: [{ ui: "Expiration date", dest: "apiToken1ExpirationDate" }, { ui: "Referrers", dest: "httpReferrers" }] },
+    { id: "details", phase: 1, pill: "Item details", title: "Item details: title, tags, summary",
+      text: "Asked for late in the wizard, but it belongs to the very first request.",
+      shots: ["credential-item-details-apikey.png"],
+      maps: [{ ui: "Title · Tags · Summary", dest: "title, tags, snippet" }] },
+    { id: "summary", phase: 1, pill: "Summary", title: "Summary",
+      text: "Everything you can enter is collected. Nothing has been sent, and Next here still sends nothing. The gaps left are values only the server can return.",
+      shots: ["credential-summary-public.png"], maps: [] },
+    { id: "s-add", phase: 2, pill: "addItem", sends: "add", title: "Generate API key › Next › request 1 creates the item",
+      text: "Next on the Generate API key screen sends three requests (Summary › Next sends none). The response id fills the gaps in requests 2 and 3.", shots: ["generate-the-apikey.png"] },
+    { id: "s-reg", phase: 2, pill: "registerApp", sends: "reg", title: "Confirm › request 2 registers it",
+      text: "The response brings client_id and client_secret, which request 4 needs.", shots: ["generate-the-apikey.png"],
+      note: { text: "<strong>client_secret is the master credential.</strong> With it anyone can mint new keys. Never ship it in an app." } },
+    { id: "s-upd", phase: 2, pill: "update", sends: "upd", title: "Confirm › request 3 stores the expiration",
+      text: "Each item has two key slots, each with its own expiration date stored on the item. Then the portal redirects to the item page.", shots: ["generate-the-apikey.png"] },
+    { id: "s-tok", phase: 3, pill: "token", sends: "tok", title: "Item page › request 4 generates the key",
+      text: "The wizard doesn't generate the key: the item page does, right after the redirect. client_secret authenticates the call.", shots: ["copy-the-apikey.png"],
+      note: { text: "Only with <strong>Generate the API key now. I am ready to copy and save the token.</strong> The other option, <strong>Go to item details page</strong>, skips this request; you generate the key later from the item page." } },
+    { id: "copy", phase: 3, pill: "Copy key", title: "Copy your API key",
+      text: "It's the access_token of request 4, shown only once.", shots: ["copy-the-apikey.png"],
+      maps: [{ ui: "Your API key", dest: "access_token (request 4)" }],
+      note: { text: "<strong>The key carries its slot:</strong> it ends in <code>AT1_</code> + the last 8 characters of the client_id." } },
+  ];
+
+  /* ---------- Requests. from: frame id | "@req" (value from that response) | "always" ---------- */
+  const signinReq = (to) => ({ id: "signin", n: "0", ep: "generateToken", path: "/generateToken", ret: "token",
+      params: [
+        { k: "username", v: "dev_user", from: "signin", key: true },
+        { k: "password", v: "••••••••", from: "signin", why: "Scripts only. Apps sign in with OAuth 2.0." },
+        { k: "client", v: "referer", from: "signin" },
+        { k: "f", v: "json", from: "always" },
+      ], response: { token: "$token", expires: 1792000000000, ssl: true }, hot: { token: "→ " + to } });
+  const CREATE_R = [
+    signinReq("requests 1–3"),
+    { id: "add", n: "1", ep: "addItem", path: "/content/users/dev_user/addItem", ret: "id",
+      params: [
+        { k: "type", v: "Application", from: "type", key: true, why: "Credential items are Application items." },
+        { k: "title", v: "My API key credentials tutorial", from: "details", key: true },
+        { k: "tags", v: "api key, basemaps, geocoding", from: "details" },
+        { k: "snippet", v: "Key for the store locator app", from: "details" },
+        { k: "apiToken1ExpirationDate", v: String(expMs), from: "exp", why: "The wizard sends it here too, and again in request 3 after registerApp, as REST JS does." },
+        { k: "token", v: "$token", from: "signin" },
+        { k: "f", v: "json", from: "always" },
+      ], response: { success: true, id: "$item_id", folder: "" }, hot: { id: "→ requests 2 and 3" } },
+    { id: "reg", n: "2", ep: "oauth2/registerApp", path: "/oauth2/registerApp", ret: "client_id · client_secret",
+      params: [
+        { k: "itemId", v: "$item_id", from: "@add", key: true },
+        { k: "appType", v: "multiple", from: "fixed", why: "Required by registerApp (it fails without it), but the value doesn't affect the key. REST JS and the ArcGIS API for Python use multiple." },
+        { k: "redirect_uris", v: '["urn:ietf:wg:oauth:2.0:oob"]', from: "fixed", why: "Required by registerApp, but unused by API keys: even an empty array works." },
+        { k: "privileges", v: "$privileges", from: "items", also: ["privs"], key: true, why: "One item privilege per selected item, plus the service privileges." },
+        { k: "httpReferrers", v: '["https://myapp.example.com"]', from: "exp", key: true },
+        { k: "token", v: "$token", from: "signin" },
+        { k: "f", v: "json", from: "always" },
+      ], response: { itemId: "$item_id", client_id: "$client_id", client_secret: "$client_secret", appType: "multiple",
+                     httpReferrers: ["https://myapp.example.com"], privileges: "$privileges" },
+      hot: { client_id: "→ request 4", client_secret: "→ request 4 · server-side only" } },
+    { id: "upd", n: "3", ep: "items/{id}/update", path: "/content/users/dev_user/items/{id}/update", ret: "success",
+      params: [
+        { k: "{id} in URL", v: "$item_id", from: "@add", key: true },
+        { k: "apiToken1ExpirationDate", v: String(expMs), from: "exp", key: true, why: "Epoch in ms (" + new Date(expMs).toISOString().slice(0, 10) + "). One year at most." },
+        { k: "apiToken2ExpirationDate", v: "-1", from: "fixed", why: "Slot 2 unused for now. REST JS sends -1." },
+        { k: "token", v: "$token", from: "signin" },
+        { k: "f", v: "json", from: "always" },
+      ], response: { success: true, id: "$item_id" }, hot: {} },
+    { id: "tok", n: "4", ep: "oauth2/token", path: "/oauth2/token", ret: "access_token = API key",
+      params: [
+        { k: "client_id", v: "$client_id", from: "@reg", key: true },
+        { k: "client_secret", v: "$client_secret", from: "@reg", key: true, why: "Authenticates the call instead of a user token." },
+        { k: "grant_type", v: "client_credentials", from: "fixed", why: "App-level grant: client_id + client_secret." },
+        { k: "apiToken", v: "1", from: "fixed", key: true, why: "Slot 1 or 2. Without it you get a 2-hour app token." },
+        { k: "regenerateApiToken", v: "false", from: "fixed", why: "What the portal sends for a new key. On a slot that already has a key, false is refused and true replaces it, invalidating the old one at once." },
+        { k: "f", v: "json", from: "always" },
+      ], response: { access_token: "$api_key", expires_in: expIn }, hot: { access_token: "→ the key you copy", expires_in: "seconds until expiration" } },
+  ];
+
+  /* ---------- Rotate: slot 1 holds the key in production, slot 2 gets the new one ---------- */
+  // phase 0 = before, 1 = item page → key in slot 2, 2 = deploy (nothing sent), 3 = invalidate slot 1
+  const ROTATE_F = [
+    signinFrame("requests 1, 2 and 4"),
+    { id: "item", phase: 1, pill: "Item page", sends: "info", title: "Item page › API keys",
+      text: "Slot 1 holds the key in production and slot 2 is free. The page reads the item's client credentials and which slots hold a key.",
+      shots: ["rotate-1-item-page.png"],
+      maps: [{ ui: "Show partial API key 1", dest: "slot 1 · ends in AT1_…" }, { ui: "Generate a secondary API key", dest: "slot 2" }] },
+    { id: "exp2", phase: 1, pill: "Expiration", title: "Generate a secondary API key › Set expiration date",
+      text: "Like in the wizard, the date is collected first. Nothing is sent until you click Generate API key.",
+      shots: ["rotate-2-generate-slot2.png"],
+      maps: [{ ui: "Set expiration date", dest: "apiToken2ExpirationDate" }] },
+    { id: "s-upd", phase: 1, pill: "update", sends: "upd", title: "Generate API key › request 2 stores the expiration",
+      text: "Each slot has its own expiration date, stored on the item.", shots: ["rotate-2-generate-slot2.png"] },
+    { id: "s-tok", phase: 1, pill: "token", sends: "tok", title: "Generate API key › request 3 generates the key in slot 2",
+      text: "Same call as when creating, with apiToken=2. Copy the new key: it's shown only once. Both keys work now.", shots: ["copy-the-apikey.png"],
+      maps: [{ ui: "Your API key", dest: "access_token (request 3) · ends in AT2_…" }],
+      note: { text: "<strong>The item page always sends regenerateApiToken=true.</strong> On a slot that already holds a key, that invalidates it at once: never use Regenerate API key on the key in production." } },
+    { id: "deploy", phase: 2, pill: "Deploy", title: "Deploy the new key",
+      text: "Put the new key in the app's configuration and deploy. The old key must stay valid until the new deployment is live.",
+      shots: [], placeholder: "Your app › configuration › API key = …AT2_K9pLw4Zd",
+      maps: [{ ui: "Nothing in the portal", dest: "No request: both keys are valid.", none: true }] },
+    { id: "s-rev", phase: 3, pill: "revokeToken", sends: "rev", title: "Invalidate API key › request 4 revokes slot 1",
+      text: "Back on the item page, invalidate the old key. Apps still using it stop working at once, and slot 1 is free for the next rotation.",
+      shots: ["rotate-3-invalidate-slot1.png"],
+      maps: [{ ui: "Yes, invalidate API key", dest: "revokeToken · apiToken = 1" }] },
+  ];
+  const ROTATE_R = [
+    signinReq("requests 1, 2 and 4"),
+    { id: "info", n: "1", ep: "items/{id}/registeredAppInfo", path: "/content/users/dev_user/items/{id}/registeredAppInfo", ret: "client_id · client_secret",
+      params: [
+        { k: "{id} in URL", v: "$item_id", from: "item", key: true },
+        { k: "token", v: "$token", from: "signin" },
+        { k: "f", v: "json", from: "always" },
+      ], response: { itemId: "$item_id", client_id: "$client_id", client_secret: "$client_secret", appType: "multiple",
+                     apiToken1Active: true, apiToken2Active: false },
+      hot: { client_id: "→ requests 3 and 4", client_secret: "→ requests 3 and 4", apiToken2Active: "→ slot 2 is free" } },
+    { id: "upd", n: "2", ep: "items/{id}/update", path: "/content/users/dev_user/items/{id}/update", ret: "success",
+      params: [
+        { k: "{id} in URL", v: "$item_id", from: "item", key: true },
+        { k: "apiToken2ExpirationDate", v: String(expMs2), from: "exp2", key: true, why: "Epoch in ms. Slot 1 keeps its own date." },
+        { k: "token", v: "$token", from: "signin" },
+        { k: "f", v: "json", from: "always" },
+      ], response: { success: true, id: "$item_id" }, hot: {} },
+    { id: "tok", n: "3", ep: "oauth2/token", path: "/oauth2/token", ret: "access_token = new key",
+      params: [
+        { k: "client_id", v: "$client_id", from: "@info", key: true },
+        { k: "client_secret", v: "$client_secret", from: "@info", key: true, why: "Authenticates the call instead of a user token." },
+        { k: "grant_type", v: "client_credentials", from: "fixed" },
+        { k: "apiToken", v: "2", from: "fixed", key: true, why: "The free slot." },
+        { k: "regenerateApiToken", v: "true", from: "fixed", why: "The item page always sends true. Harmless on an empty slot; on a slot with a key it replaces and invalidates that key at once." },
+        { k: "f", v: "json", from: "always" },
+      ], response: { access_token: "$api_key2", expires_in: expIn }, hot: { access_token: "→ the key you deploy" } },
+    { id: "rev", n: "4", ep: "oauth2/revokeToken", path: "/oauth2/revokeToken", ret: "success",
+      params: [
+        { k: "client_id", v: "$client_id", from: "@info", key: true },
+        { k: "client_secret", v: "$client_secret", from: "@info", key: true },
+        { k: "apiToken", v: "1", from: "fixed", key: true, why: "The old slot. No grant_type." },
+        { k: "token", v: "$token", from: "signin", why: "The item page sends it; revokeToken also works without it." },
+        { k: "f", v: "json", from: "always" },
+      ], response: { success: true }, hot: { success: "→ slot 1 is free" } },
+  ];
+
+  const FLOWS = {
+    create: { F: CREATE_F, R: CREATE_R, hash: "step-", title: "What the portal sends when you create an API key",
+      groups: [
+        { ph: 0, h: "Before" },
+        { ph: 1, h: "1 · Fill the wizard", em: "nothing is sent" },
+        { ph: 2, h: "2 · Confirm", em: "the wizard sends 3 requests" },
+        { ph: 3, h: "3 · Item page", em: "the key is generated" },
+      ],
+      eyebrow: (fr, i) => fr.phase === 0 ? "Before the wizard" : fr.phase === 1 ? `Wizard screen ${i} of 8 · nothing sent yet`
+        : fr.phase === 2 ? `After confirming · request ${reqById[fr.sends].n} of 3` : fr.sends ? "On the item page · request 4" : "Done" },
+    rotate: { F: ROTATE_F, R: ROTATE_R, hash: "rotate-", title: "What the portal sends when you rotate an API key",
+      groups: [
+        { ph: 0, h: "Before" },
+        { ph: 1, h: "1 · New key in slot 2", em: "slot 1 keeps working" },
+        { ph: 2, h: "2 · Deploy", em: "both keys work" },
+        { ph: 3, h: "3 · Invalidate slot 1" },
+      ],
+      eyebrow: (fr) => fr.phase === 0 ? "Before rotating" : fr.phase === 2 ? "In your app · nothing sent"
+        : fr.sends ? `On the item page · request ${reqById[fr.sends].n} of 4` : "On the item page · nothing sent yet" },
+  };
+
+  /* ---------- State ---------- */
+  const store = (() => { try { return window.localStorage; } catch { return null; } })();
+  const get = (k, d) => { try { return store?.getItem(k) ?? d; } catch { return d; } };
+  const put = (k, v) => { try { store?.setItem(k, v); } catch {} };
+  let platform = get("akf-platform", "location"); if (!PLATFORMS[platform]) platform = "location";
+  let flow, F, R, reqById, idx = 0;
+  const useFlow = (name) => { flow = FLOWS[name]; F = flow.F; R = flow.R; reqById = Object.fromEntries(R.map((r) => [r.id, r])); };
+  const fromHash = () => {
+    const h = /^#(step-|rotate-)(\d+)$/.exec(location.hash);
+    return h && { name: h[1] === "rotate-" ? "rotate" : "create", i: Number(h[2]) - 1 };
+  };
+  { const h = fromHash(); useFlow(h ? h.name : "create"); if (h) idx = Math.min(F.length - 1, Math.max(0, h.i)); }
+  let timer = null;
+
+  const frameOf = (id) => F.findIndex((f) => f.id === id);
+  const sendFrame = (req) => F.findIndex((f) => f.sends === req);
+  const isConst = (p) => p.from === "always" || p.from === "fixed";
+  const fillAt = (p) => isConst(p) ? -1 : p.from.startsWith("@") ? sendFrame(p.from.slice(1)) : frameOf(p.from);
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const privs = () => PLATFORMS[platform].privileges;
+  const privList = () => idx >= frameOf("privs") ? [ITEM_PRIV, ...privs()] : [ITEM_PRIV];
+  const val = (v) => v === "$privileges" ? JSON.stringify(privList()) : (typeof v === "string" && v.startsWith("$")) ? V[v.slice(1)] : v;
+
+  Object.entries(PLATFORMS).forEach(([key, p]) => {
+    const b = document.createElement("button");
+    b.textContent = p.name; b.dataset.p = key;
+    b.addEventListener("click", () => { platform = key; put("akf-platform", key); render(false); });
+    $("platforms").appendChild(b);
+  });
+
+  const status = (r) => { const sf = sendFrame(r.id); return idx > sf ? "sent" : idx === sf ? "now" : "draft"; };
+
+  /* ---------- Diagram ---------- */
+  function renderDiagram(animate) {
+    let h = `<div class="lifeline" style="left:var(--l1)"></div><div class="lifeline" style="left:var(--l2)"></div>
+      <div class="lanes">
+        <div class="lane" style="left:var(--l1)"><b>You</b><span>portal UI</span></div>
+        <div class="lane" style="left:calc(var(--l2) - 2%)"><b>Portal</b><span>/sharing/rest</span></div>
+      </div>`;
+    R.forEach((r) => {
+      const st = status(r);
+      const counted = r.params.filter((p) => !isConst(p));
+      const filled = counted.filter((p) => idx >= fillAt(p)).length;
+      const fresh = counted.filter((p) => st === "draft" && (fillAt(p) === idx || (p.also || []).some((f) => frameOf(f) === idx)));
+      const touched = fresh.length > 0;
+      const pending = counted.filter((p) => idx < fillAt(p) && p.from.startsWith("@"));
+      const count = st === "draft"
+        ? `${filled}/${counted.length} set<span class="bar"><i style="width:${Math.round(100 * filled / counted.length)}%"></i></span>`
+        : "200 OK";
+      const shown = (p) => p.k === "privileges" && idx === frameOf("privs") ? "+= " + privs().join(", ") : "= " + val(p.v);
+      let adds = fresh.slice(0, 3).map((p) => `<div class="add fresh"><span class="plus">+</span><span class="k">${esc(p.k)}</span><span class="v">${esc(shown(p))}</span>${p.from.startsWith("@") ? `<span class="src">← response ${reqById[p.from.slice(1)].n}</span>` : ""}</div>`).join("");
+      if (fresh.length > 3) adds += `<div class="add more">+ ${fresh.length - 3} more</div>`;
+      if (!touched && st === "draft" && pending.length && F[idx].phase >= 1)
+        adds = `<div class="add more">waits for ${pending.map((p) => esc(p.k)).join(", ")} from response ${reqById[pending[0].from.slice(1)].n}</div>`;
+      const showRet = st !== "draft";
+      const retTxt = st === "now" ? r.ret : r.ret;
+      const toX = "var(--l2)";
+      h += `<button class="row to-portal ${st} ${touched ? "touched" : ""}" data-req="${r.id}" style="--to:${toX}" aria-label="Request ${r.n === "0" ? "sign in" : r.n}: ${esc(r.ep)}, ${st}. Open details.">
+        <span class="num">${r.n === "0" ? "·" : r.n}</span>
+        <span class="lbl"><code>POST ${esc(r.ep)}</code><span class="count ${st !== "draft" ? "ok" : ""}">${count}</span></span>
+        <span class="arrow"></span>
+        ${st === "now" ? `<span class="packet go"></span><span class="packet back"></span>` : ""}
+        ${showRet ? `<span class="ret"></span><span class="ret-lbl">${esc(retTxt)}</span>` : ""}
+        <span class="adds">${adds}</span>
+      </button>`;
+    });
+    $("diagram").innerHTML = h;
+  }
+
+  /* ---------- Portal side ---------- */
+  function renderPortal() {
+    const fr = F[idx];
+    const P = PLATFORMS[platform];
+    const eyebrow = flow.eyebrow(fr, idx);
+    const shots = fr.shots.length
+      ? fr.shots.map((s, i) => `<button class="shot" data-src="img/${s}" aria-label="Enlarge screenshot"><img src="img/${s}" alt="${esc(fr.title)} screen">${fr.badge && i === 0 ? `<span class="badge">${esc(fr.badge)}</span>` : ""}</button>`).join("")
+      : `<div class="no-shot">${esc(fr.placeholder)}</div>`;
+    const maps = (fr.maps || []).map((mp) => `<div class="map"><span class="ui">${esc(mp.ui)}</span><span class="sep">→</span><span class="dest ${mp.none ? "none" : ""}">${esc(mp.dest)}</span></div>`).join("");
+    const notes = fr.note ? [fr.note] : [];
+    if (fr.id === "privs" && P.privsNote) notes.push({ text: P.privsNote });
+    $("portal").className = "portal" + (fr.phase === 2 ? " is-p2" : "");
+    $("portal").innerHTML = `<div class="frame-head"><div class="eyebrow">${eyebrow}</div><h3>${esc(fr.title)}</h3><p>${esc(fr.text)}</p></div>
+      <div class="shot-box ${fr.shots.length > 1 ? "multi" : ""}">${shots}</div>
+      ${maps ? `<div class="maps">${maps}</div>` : ""}
+      ${notes.map((n) => `<div class="note">${n.text}</div>`).join("")}`;
+    $("plat-hint").textContent = P.name;
+  }
+
+  /* ---------- Phase bar ---------- */
+  function renderPhases() {
+    const fr = F[idx];
+    $("phases").innerHTML = flow.groups.map((g) => `<div class="phase p${g.ph} ${fr.phase === g.ph ? "current" : ""}">
+      <div class="phase-h">${g.h}${g.em ? ` <em>· ${g.em}</em>` : ""}</div>
+      <div class="pills">${F.map((f, i) => f.phase === g.ph ? `<button class="pill ${i < idx ? "done" : ""}" data-i="${i}" ${i === idx ? 'aria-current="step"' : ""}>${esc(f.pill)}</button>` : "").join("")}</div></div>`).join("");
+  }
+
+  /* ---------- Drawer: full request ---------- */
+  function renderJson(obj, hot) {
+    const keys = Object.keys(obj);
+    return `<span class="dim">{</span>\n` + keys.map((k, i) => {
+      const raw = val(obj[k]);
+      const isArr = obj[k] === "$privileges" || Array.isArray(obj[k]);
+      const v = typeof raw === "number" || typeof raw === "boolean" ? `<span class="n">${raw}</span>`
+        : isArr ? `<span class="s">${esc(Array.isArray(raw) ? JSON.stringify(raw) : raw)}</span>` : `<span class="s">"${esc(raw)}"</span>`;
+      const h = hot && k in hot;
+      return `<span class="${h ? "hot" : ""}">  <span class="k">"${esc(k)}"</span>: ${v}${i < keys.length - 1 ? "," : ""}${h ? `  <span class="to">${hot[k]}</span>` : ""}</span>`;
+    }).join("\n") + `\n<span class="dim">}</span>`;
+  }
+  function openDrawer(id) {
+    const r = reqById[id];
+    const st = status(r);
+    const idParam = r.params.find((p) => p.k === "{id} in URL");
+    const path = r.path.replace("{id}", idParam && idx >= fillAt(idParam) ? V.item_id.slice(0, 8) + "…" : "{id}");
+    $("dr-title").textContent = r.n === "0" ? "Sign in" : `Request ${r.n} · ${r.ep}`;
+    const rows = r.params.map((p) => {
+      const ok = idx >= fillAt(p);
+      const v = ok ? esc(val(p.v)) : p.from.startsWith("@") ? `waits for response ${reqById[p.from.slice(1)].n}` : "not set yet";
+      const why = [p.from === "fixed" ? "Fixed value: no wizard screen sets it." : "", p.why || ""].filter(Boolean).join(" ");
+      return `<tr class="${p.key ? "key" : ""}"><td>${esc(p.k)}</td><td class="v ${ok ? "" : "pending"}">${v}${why ? `<span class="why">${esc(why)}</span>` : ""}</td></tr>`;
+    }).join("");
+    $("dr-body").innerHTML = `
+      <div class="req-line"><span class="method">POST</span><span><span class="base">${esc(PLATFORMS[platform].base)}</span>${esc(path)}</span></div>
+      <div class="sub-h">Parameters · application/x-www-form-urlencoded</div>
+      <table class="params"><tbody>${rows}</tbody></table>
+      <div class="sub-h">Response</div>
+      ${st === "draft" ? `<p style="margin:0;color:var(--text-3);font-size:var(--fs-s)">Not sent yet.</p>` : `<pre class="json">${renderJson(r.response, r.hot)}</pre>`}`;
+    $("drawer").showModal();
+  }
+
+  /* ---------- Render ---------- */
+  function render(animate = true) {
+    document.querySelectorAll("#platforms button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.p === platform)));
+    renderPhases(); renderPortal(); renderDiagram(animate);
+    const view = $("view");
+    if (animate) { view.classList.remove("anim"); void view.offsetWidth; view.classList.add("anim"); }
+    $("prev").disabled = idx === 0;
+    $("next").disabled = idx === F.length - 1;
+    $("progress").textContent = `${idx + 1} / ${F.length}`;
+    $("title").textContent = flow.title;
+    try { history.replaceState(null, "", "#" + flow.hash + (idx + 1)); } catch {}
+  }
+
+  const go = (i) => { idx = Math.max(0, Math.min(F.length - 1, i)); render(true); };
+  const stopPlay = () => { clearInterval(timer); timer = null; $("play").textContent = "Play"; $("play").setAttribute("aria-pressed", "false"); };
+  $("prev").addEventListener("click", () => { stopPlay(); go(idx - 1); });
+  $("next").addEventListener("click", () => { stopPlay(); go(idx + 1); });
+  $("play").addEventListener("click", () => {
+    if (timer) return stopPlay();
+    if (idx === F.length - 1) go(0);
+    $("play").textContent = "Pause"; $("play").setAttribute("aria-pressed", "true");
+    timer = setInterval(() => { if (idx >= F.length - 1) return stopPlay(); go(idx + 1); }, 5000);
+  });
+  $("phases").addEventListener("click", (e) => { const b = e.target.closest("[data-i]"); if (b) { stopPlay(); go(Number(b.dataset.i)); } });
+  $("diagram").addEventListener("click", (e) => { const b = e.target.closest(".row"); if (b) { stopPlay(); openDrawer(b.dataset.req); } });
+  $("dr-close").addEventListener("click", () => $("drawer").close());
+  $("drawer").addEventListener("click", (e) => { if (e.target === $("drawer")) $("drawer").close(); });
+  document.addEventListener("click", (e) => {
+    const s = e.target.closest(".shot");
+    if (s) { $("lb-img").src = s.dataset.src; $("lb").showModal(); }
+    else if (e.target.closest("#lb")) $("lb").close();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest("input, textarea") || $("lb").open || $("drawer").open) return;
+    if (e.key === "ArrowRight" || e.key === "PageDown") { stopPlay(); go(idx + 1); }
+    else if (e.key === "ArrowLeft" || e.key === "PageUp") { stopPlay(); go(idx - 1); }
+    else if (e.key.toLowerCase() === "r") render(true);
+  });
+
+  const setFlow = (name, i = 0) => {
+    stopPlay(); useFlow(name);
+    $("flow-create").setAttribute("aria-pressed", String(name === "create"));
+    $("flow-rotate").setAttribute("aria-pressed", String(name === "rotate"));
+    go(i);
+  };
+  $("flow-create").addEventListener("click", () => { if (flow !== FLOWS.create) setFlow("create"); });
+  $("flow-rotate").addEventListener("click", () => { if (flow !== FLOWS.rotate) setFlow("rotate"); });
+
+  window.addEventListener("hashchange", () => {
+    const h = fromHash();
+    if (h && (FLOWS[h.name] !== flow || h.i !== idx)) setFlow(h.name, h.i);
+  });
+
+  setFlow(flow === FLOWS.rotate ? "rotate" : "create", idx);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+$ VERBOSE=1 bash create-api-key.sh
+{
+  "access_token": "u7Qx2PfLk-Y9wd_example-app-token",
+  "expires_in": 7200
+}

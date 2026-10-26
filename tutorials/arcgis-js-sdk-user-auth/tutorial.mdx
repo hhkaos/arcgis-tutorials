@@ -1,18 +1,22 @@
 ---
-title: Security and authentication for custom applications | Esri European DevTech Summit 2026
+title: User Auth with the ArcGIS Maps SDK for JavaScript
+subtitle: Security and authentication for custom applications | Esri European DevTech Summit 2026
 preview: both
 theme: auto
 codeWrap: true
 logo: arcgis-maps-sdk-for-javascript-glyph-32.svg
-# Series index and siblings
-tags: [JavaScript, OAuth, User Authentication, Security]
+description: Sign users in from a browser app with OAuth 2.0 and PKCE. Register OAuth credentials with a redirect URL, then let IdentityManager handle sign-in, sign-out and tokens.
+tags: [User Authentication, Create credentials, Use credentials, ArcGIS Maps SDK for JavaScript, JavaScript, Browser, ArcGIS Online, ArcGIS Enterprise, ArcGIS Location Platform, EuroDevTech26]
 level: Intermediate
 duration: 15 min
+updated: 2026-10-26
+order: 8
+next: credential-console-basics
 ---
 
 <Intro>
 
-## User Auth with the ArcGIS Maps SDK for JavaScript
+## About this demo
 
 In this demo, we will build a small browser app that signs a user in with OAuth 2.0 using the [ArcGIS Maps SDK for JavaScript](https://developers.arcgis.com/javascript/latest/).
 
@@ -23,7 +27,7 @@ In this demo, we will build a small browser app that signs a user in with OAuth 
 
 </Intro>
 
-<Step id="how-oauth-works" embed="https://www.rauljimenez.info/oauth-workflow-arcgis" preview="collapsed">
+<Step id="how-oauth-works" embed="https://www.rauljimenez.info/oauth-workflow-arcgis" collapsed>
 
 ## How OAuth works
 
@@ -40,7 +44,7 @@ Browser apps cannot keep a client secret, so PKCE proves that the app redeeming 
 
 </Step>
 
-<Step id="load-sdk" file="index.html" region="cdn" preview="collapsed">
+<Step id="load-sdk" file="index.html" region="cdn" collapsed>
 
 ## Load the SDK
 
@@ -48,7 +52,7 @@ First, load the ArcGIS Maps SDK for JavaScript. The SDK also loads the Calcite c
 
 </Step>
 
-<Step id="ui" file="index.html" region="ui" preview="expanded">
+<Step id="ui" file="index.html" region="ui" view="preview">
 
 ## Build the UI
 
@@ -60,7 +64,7 @@ Next, let's add the visible parts of the app:
 
 </Step>
 
-<Step id="config" file="main.js" region="config" preview="collapsed">
+<Step id="config" file="main.js" region="config" collapsed>
 
 ## App settings
 
@@ -71,7 +75,7 @@ The OAuth flow needs two app settings:
 
 </Step>
 
-<Step id="imports" file="main.js" region="imports" preview="collapsed">
+<Step id="imports" file="main.js" region="imports" collapsed>
 
 ## Import authentication modules
 
@@ -80,7 +84,7 @@ The OAuth flow needs two app settings:
 
 </Step>
 
-<Step id="oauth" file="main.js" region="oauth" preview="collapsed">
+<Step id="oauth" file="main.js" region="oauth" collapsed>
 
 ## Register OAuthInfo within IdentityManager
 
@@ -104,7 +108,7 @@ When the user signs in, ArcGIS redirects the popup to the callback URL registere
 
 </Step>
 
-<Step id="callback" file="oauth-callback.html" region="handler" preview="collapsed">
+<Step id="callback" file="oauth-callback.html" region="handler" collapsed>
 
 ## Add the callback page
 
@@ -127,7 +131,7 @@ The callback script passes the OAuth response back to the original app window, w
 
 </Step>
 
-<Step id="register-app" images={["1-create-new-item.png", "2-select-developer-credentials.png", "3-select-oauth2-user-authentication.png", "4-set-the-redirect-url.png", "5-add-developer-credential-item-info.png", "5.1-item-title-in-oauth-modal.png", "6-review-and-accept.png", "7-copy-the-clientid.png"]} preview="collapsed">
+<Step id="register-app" images={["1-create-new-item.png", "2-select-developer-credentials.png", "3-select-oauth2-user-authentication.png", "4-set-the-redirect-url.png", "5-add-developer-credential-item-info.png", "5.1-item-title-in-oauth-modal.png", "6-review-and-accept.png", "7-copy-the-clientid.png"]} collapsed>
 
 ## Create the Developer Credential
 
@@ -145,7 +149,7 @@ Now that the app points to `oauth-callback.html`, create the developer credentia
 
 </Step>
 
-<Step id="set-client-id" file="main.js" region="config" preview="collapsed">
+<Step id="set-client-id" file="main.js" region="config" collapsed>
 
 ## Set clientId and portalUrl
 
@@ -164,7 +168,7 @@ If you created the developer credential in ArcGIS Enterprise, set the Portal URL
 
 </Step>
 
-<Step id="auth-state" file="main.js" region="auth-state" preview="collapsed">
+<Step id="auth-state" file="main.js" region="auth-state" collapsed>
 
 ## Check whether the user is signed in
 
@@ -177,7 +181,7 @@ The URL ends in `/sharing` because the ArcGIS sharing endpoint is the secured re
 
 </Step>
 
-<Step id="sign-in" file="main.js" region="sign-in" preview="collapsed">
+<Step id="sign-in" file="main.js" region="sign-in" collapsed>
 
 ## Wire Sign in and Sign out
 
@@ -194,7 +198,7 @@ When sign-in succeeds, the SDK stores the credential and the app updates the sta
 
 </Step>
 
-<Step id="try-app" images={["first-login-returned-tokens.png"]} preview="expanded">
+<Step id="try-app" images={["first-login-returned-tokens.png"]} view="preview">
 
 ## Try the app
 
@@ -223,7 +227,7 @@ For apps that need stricter control over long-lived credentials, use a backend O
 
 </Step>
 
-<Step id="troubleshooting" images={["wrong-app-settings.png"]} preview="collapsed">
+<Step id="troubleshooting" images={["wrong-app-settings.png"]} collapsed>
 
 ## Troubleshooting
 

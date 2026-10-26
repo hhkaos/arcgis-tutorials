@@ -1,0 +1,4 @@
+$ python rotate_api_key.py
+New API key (slot 2): AAPTk3Lm9QzR2vWs8EoYbN4tHc7uJ1xA6dFg_example_pQ5nZwB.AT2_K9pLw4Zd
+Deploy the new key, then press Enter to invalidate the old one…
+Old key in slot 1 invalidated: True

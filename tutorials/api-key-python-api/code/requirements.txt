@@ -1,0 +1,2 @@
+arcgis>=2.4.2
+python-dotenv>=1.0

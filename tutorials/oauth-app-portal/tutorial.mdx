@@ -1,0 +1,144 @@
+---
+title: Create OAuth credentials for a backend app in the portal
+logo: arcgis-online.svg
+description: No code. Get a client ID and secret limited to the privileges and items your server needs, see why referrers don't protect a backend, and exchange them for a short-lived token.
+tags: [App Authentication, Create credentials, Portal, No code, ArcGIS Online, ArcGIS Enterprise, ArcGIS Location Platform]
+level: Beginner
+duration: 10 min
+updated: 2026-10-26
+order: 5
+next: python-app-auth
+preview: off
+family: oauth-app
+familyLabel: Portal
+---
+
+<Intro images={["credential-type-app.png"]}>
+
+## What you will do
+
+You will use the ArcGIS Online portal (the steps are the same in ArcGIS Location Platform and ArcGIS Enterprise) to:
+
+* Create an item to hold OAuth 2.0 credentials for app authentication, with the privileges and item access a backend script needs.
+* Copy its client ID and client secret, and exchange them for an access token.
+
+<details>
+<summary>Check prerequisites</summary>
+<p>You will need an ArcGIS Online, ArcGIS Location Platform, or ArcGIS Enterprise account that can create developer credentials. In ArcGIS Online and ArcGIS Enterprise, that means a user type of Creator or higher with the <strong>Generate API keys</strong> and <strong>Assign privileges to OAuth 2.0 applications</strong> privileges. Without them, the menus in this tutorial don't appear.</p>
+</details>
+
+Unlike an API key, OAuth credentials hold no token. They hold a `client_id` and a `client_secret` that your script exchanges for a short-lived token each time it needs one. 
+
+> **The secret is as sensitive as a password**, so these credentials belong in server-side code only: a backend script, a scheduled job, a proxy.
+
+</Intro>
+
+<Step id="add-item" images={["new-item-button.png", "credential-type-app.png"]}>
+
+## Start the wizard
+
+Sign in to your portal and go to **Content › My content › New item** and choose:
+1. **Developer credentials** 
+2. **OAuth 2.0 credentials** and click **Next**.
+
+Like API key credentials, this creates an `Application` item: `type=Application` in `addItem`.
+
+</Step>
+
+<Step id="app-type" images={["oauth-environment.png"]}>
+
+## Choose where you will use the credentials
+
+Select **Private application with selected privileges and access**. Tokens from these credentials can do only what you grant on the next two screens.
+
+Avoid **Private application that impersonates you**: its tokens carry all your privileges and your access to the organization's content, members and settings. A leaked secret would expose all of it.
+
+</Step>
+
+<Step id="item-access" images={["item-selection.png"]}>
+
+## Grant access to items
+
+Select **Grant access to specific items** and pick up to 100 items the script reads or writes, such as the hosted feature layer it updates. Pick only those: a token reaches nothing else unless it is public.
+
+Each selected item adds `portal:app:access:item:<itemId>` to `privileges` in `oauth2/registerApp`, the same privilege API keys use.
+
+</Step>
+
+<Step id="register" images={["select-priv-oauth-online.png"]}>
+
+## Choose the privileges
+
+Enable only what the script calls. For example, **Geocoding** (`premium:user:geocode`) to geocode addresses, or **Routing** (`premium:user:networkanalysis`) to solve routes. Private applications also list **General privileges** and **Admin privileges**, such as `portal:admin:viewItems`; grant those only if the script truly needs them.
+
+Each toggle adds one string to `privileges` in `oauth2/registerApp`. The [privileges reference](https://developers.arcgis.com/documentation/security-and-authentication/reference/privileges/) explains each one.
+
+</Step>
+
+<Step id="referrers" images={["referrer-urls.png"]}>
+
+## Referrer URLs: leave them empty for a backend script
+
+**Referrer URLs** are the domains allowed to use the token, such as `https://myapp.example.com`. 
+
+Referrers are checked against the HTTP `Referer` header, which browsers set and scripts don't. A backend script can send any `Referer` it wants, so referrers don't protect it. For a script, leave the list empty and protect the client secret instead: keep it in a secrets store or an environment variable, never in the repository.
+
+Set referrers **only if the tokens your server creates end up in a browser app**, for example a proxy that hands tokens to a web map. Then list that app's domains.
+
+</Step>
+
+<Step id="details" images={["oauth-credentials-details.png"]}>
+
+## Describe and create the item
+
+Give the item a **Title**, a **Folder**, **Tags** and a **Summary**. They are the `title`, `tags` and `snippet` of `addItem`. Review the summary and click **Create**.
+
+That click sends `addItem`, then `oauth2/registerApp`. There is no token to generate: the credentials are ready.
+
+</Step>
+
+<Step id="copy" images={["client-credentials.png"]}>
+
+## Copy the client ID and client secret
+
+On the item page, under **Credentials**, copy the **Client ID** and the **Client secret**. They come from the `registerApp` response, as `client_id` and `client_secret`.
+
+Unlike an API key, the secret stays visible on the item page to you. Keep it out of code, logs and screenshots.
+
+</Step>
+
+<Step id="token">
+
+## Get an access token
+
+Your script sends the credentials to the token endpoint with the client credentials grant:
+
+```sh
+curl https://www.arcgis.com/sharing/rest/oauth2/token \
+  -d client_id=$CLIENT_ID \
+  -d client_secret=$CLIENT_SECRET \
+  -d grant_type=client_credentials \
+  -d expiration=120 \
+  -d f=json
+```
+
+The response's `access_token` carries the privileges and item access you granted. It is valid for `expiration` minutes: 120 by default, up to 20160 (two weeks). Request a new one when it expires instead of storing it.
+
+</Step>
+
+<Step id="manage">
+
+## Change privileges and item access later
+
+From the item page, **Settings** lets you add or remove privileges and items at any time. The client ID and secret don't change, and the next token your script requests picks up the new privileges.
+
+</Step>
+
+<Outro>
+
+You have a client ID and secret. Use them from a backend script:
+
+- [Python](../python-app-auth/) with `requests-oauthlib`.
+- [ArcGIS REST JS](../oauth-app-rest-js/) in Node.js.
+
+</Outro>

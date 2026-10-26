@@ -1,0 +1,177 @@
+---
+title: Create and rotate an API key in the portal
+logo: arcgis-location-platform.svg
+description: No code. Click through the Developer credentials wizard, then rotate the key with its two slots without downtime. Each screen is mapped to the REST request it feeds.
+tags: [API keys, Create credentials, Rotate keys, Portal, No code, ArcGIS Online, ArcGIS Enterprise, ArcGIS Location Platform]
+ask: [author, chatgpt, claude, { label: "Esri's Ask AI", url: "https://developers.arcgis.com/" }]
+level: Beginner
+duration: 10 min
+updated: 2026-10-26
+order: 1
+next: api-key-rest
+preview: off
+family: api-keys
+familyLabel: Portal
+---
+
+<Intro images={["tutorial-cover.png"]}>
+
+## What you will do
+
+You will use the ArcGIS Location Platform portal (the steps are the same in ArcGIS Online and ArcGIS Enterprise; the screenshots are from ArcGIS Location Platform) to:
+
+* Create an item to hold the API key credentials with the **New item** wizard, and copy its first API key, in slot 1.
+* Later, rotate that key from the item page without downtime, using the item's second slot.
+
+<details>
+<summary>Check prerequisites</summary>
+<p>You will need an ArcGIS Location Platform, ArcGIS Online, or ArcGIS Enterprise account that can create developer credentials. In ArcGIS Online and ArcGIS Enterprise, that means a user type of Creator or higher with the <strong>Generate API keys</strong> and <strong>Assign privileges to OAuth 2.0 applications</strong> privileges. Without them, the menus in this tutorial don't appear.</p>
+</details>
+
+The wizard only collects your answers; nothing is created until you confirm on the last screen. Then the wizard sends three requests, and the item page it opens sends a fourth that generates the key. Each step below names the request a screen feeds, and the [REST API tutorial](../api-key-rest/) shows those requests one by one.
+
+</Intro>
+
+<Step id="add-item" images={["new-item-button.png", "credential-type-apikey.png"]}>
+
+## Start the wizard
+
+Sign in to your portal and go to **Content › My content › New item**. Choose **Developer credentials**, then **API key credentials**, and click **Next**.
+
+Behind the scenes, this choice makes the item an `Application` item: `type=Application` in the first request, `addItem`.
+
+</Step>
+
+<Step id="app-type" images={["intent-menu-apikey.png"]}>
+
+## Choose where you will use the key
+
+Select **Public application** for a key that ships inside an app. It limits the next screens to location-service privileges.
+
+The **Private application** options unlock General and Admin privileges. Keys made that way must never be embedded in a public app.
+
+This choice has no REST parameter of its own: it only filters the privileges you can pick.
+
+</Step>
+
+<Step id="item-access" images={["item-selection.png"]}>
+
+## Grant access to items (optional)
+
+Select **No item access**, or pick up to 100 of your items the key can read. Don't select items with sensitive data: anyone with the key can read them.
+
+Each selected item adds `portal:app:access:item:<itemId>` to `privileges` in the second request, `oauth2/registerApp`. That privilege is all item access is: no other request is involved.
+
+</Step>
+
+<Step id="register" images={["select-priv-apikey-online.png"]}>
+
+## Choose the privileges
+
+Enable only what the app calls, for example **Basemaps** and **Geocoding**. Each toggle adds one string to `privileges` in `oauth2/registerApp`, such as `premium:user:basemaps` or `premium:user:geocode`. The [privileges reference](https://developers.arcgis.com/documentation/security-and-authentication/reference/privileges/) explains each one.
+
+The same request also carries `appType` and `redirect_uris`, which no screen asks for: `registerApp` requires them, but they don't affect the key.
+
+</Step>
+
+<Step id="expiration" images={["expiration-date-key-and-referrers.png"]}>
+
+## Settings: expiration date and referrers
+
+The **Expiration date** can be up to one year away. It becomes `apiToken1ExpirationDate` (epoch milliseconds) in the third request, an item `update`.
+
+**Referrers** are the domains allowed to use the key, such as `https://myapp.example.com`. They become `httpReferrers` in `oauth2/registerApp`. Set them for every public app.
+
+Neither can change later without invalidating the key.
+
+</Step>
+
+<Step id="details" images={["credential-item-details-apikey.png"]}>
+
+## Describe the item
+
+Give the item a **Title**, **Tags** and a **Summary**. They are the `title`, `tags` and `snippet` of the first request, `addItem`: the wizard asks for them late, but the item is the first thing the portal creates.
+
+</Step>
+
+<Step id="summary" images={["credential-summary-public.png"]}>
+
+## Review the summary
+
+Check the properties, privileges and item access. Up to here nothing has been sent: the portal is still holding your answers.
+
+</Step>
+
+<Step id="generate" images={["generate-the-apikey.png", "copy-the-apikey.png"]}>
+
+## Generate and copy the key
+
+Choose **Generate the API key now. I am ready to copy and save the token.** and click **Next**. This is the click that sends everything: the wizard sends `addItem`, `oauth2/registerApp` and the item `update`, then opens the item page. The item page generates the key with `oauth2/token`, `apiToken=1` and `regenerateApiToken=false`. With **Go to item details page. I'll generate the API key later.**, it skips that request and you generate the key later from the same page.
+
+The last response's `access_token` is the key in the **Copy your API key** window. It is shown once and not stored: copy it into your app now.
+
+</Step>
+
+<Step id="flow" embed="api-key-flow/#step-1">
+
+## How the wizard maps to requests
+
+The diagram puts each screen next to the requests it feeds. Step through it to see which field fills which parameter, and how one click on **Next** sends the first three requests. Click an arrow to open the full request and its response.
+
+The item ID, client credentials and keys of the credential item in it are made up.
+
+</Step>
+
+<Step id="rotate-config" images={["rotate-1-item-page.png"]}>
+
+## Rotate: open the credentials item
+
+Keys expire, and a leaked key must be replaced. Each API key credentials item holds two keys, in slots 1 and 2, with the same privileges and referrers and their own expiration dates. Rotating means generating a key in the free slot, deploying it, then invalidating the old one, so the app is never without a valid key.
+
+Open the item page of your API key credentials: it shows both slots and their expiration dates.
+
+</Step>
+
+<Step id="rotate-generate" images={["rotate-2-generate-slot2.png"]}>
+
+## Generate a key in the free slot
+
+Click **Generate a secondary API key**, set an expiration date for the free slot and click **Generate API key**. Behind the scenes: an item `update` with `apiToken2ExpirationDate`, then `oauth2/token` with `apiToken=2` and `regenerateApiToken=true` (the item page always sends `true`). On a slot that already holds a key, that invalidates the key at once, so don't regenerate the slot in production. Copy the new key; both keys work now.
+
+</Step>
+
+<Step id="deploy">
+
+## Deploy the new key
+
+Put the new key in production. The old key must stay valid until the new deployment is live.
+
+</Step>
+
+<Step id="invalidate" images={["rotate-3-invalidate-slot1.png"]}>
+
+## Invalidate the old key
+
+Back on the item page, invalidate the key in the old slot. Behind the scenes: `oauth2/revokeToken` with the item's `client_id`, `client_secret` and `apiToken=1`. The slot is free for the next rotation.
+
+</Step>
+
+<Step id="rotate-flow" embed="api-key-flow/#rotate-1">
+
+## How the rotation maps to requests
+
+The same diagram, for the rotation: the item page next to the four requests it sends. Step through it to see that deploying sends nothing, and that only the old slot is revoked. Click an arrow to open the full request and its response.
+
+The item ID, client credentials and keys of the credential item in it are made up.
+
+</Step>
+
+<Outro>
+
+You created and rotated an API key by hand. Behind the scenes, the portal turns what you entered into REST requests, so you can script the same flow:
+
+- [REST API](../api-key-rest/): the raw requests, with cURL or Python `requests`.
+- [ArcGIS REST JS](../api-key-rest-js/): the same flow in Node.js.
+- [ArcGIS API for Python](../api-key-python-api/): the same flow in Python or a notebook.
+
+</Outro>

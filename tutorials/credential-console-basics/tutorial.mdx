@@ -1,0 +1,476 @@
+---
+title: "Developer Credentials Manager Demo"
+subtitle: Working with ArcGIS REST JS | Esri European Developer and Technology Summit 2026
+description: Sign in, manage groups and turn API keys into organized content with ArcGIS REST JS, step by step.
+codeWrap: true
+preview: both
+logo: arcgis-rest-js.svg
+console: true
+tags: [API keys, User Authentication, Create credentials, Rotate keys, Manage credentials, ArcGIS REST JS, JavaScript, ArcGIS Location Platform, ArcGIS Online, ArcGIS Enterprise, Browser, EuroDevTech26]
+level: Intermediate
+duration: 30-40 min
+order: 9
+next: false
+updated: 2026-10-18
+---
+
+<Intro images={["need.svg"]} collapsed>
+
+## About this demo
+
+You will build the basics of **Credential Console**: a browser app to organize API keys by customer, using only ArcGIS REST JS.
+
+The use case is fictional. **GeoDataProvider GmbH** sells urban data hosted on **[ArcGIS Location Platform](https://location.arcgis.com/)** to customers who don't use ArcGIS (a city, a property portal, a micromobility startup on a trial…). They use that data in their own apps, and each customer app gets **API keys** scoped to the layers it paid for.
+
+With a handful of keys this is doable. With dozens, the provider needs answers that span many credentials: what expires this month, what each key has access to, which keys belong to which customer.
+
+</Intro>
+
+<Step id="today" embed="https://docs.google.com/presentation/d/e/2PACX-1vT-K2Pn0xJjGyDoewbDIcZ8-HQ9ecWj3BdmnKMual3vXT0D0GEHMwIlT3x0rc8ZBSZVzAOW_p4W__Oc/pubembed?start=false&loop=false&delayms=3000" collapsed>
+
+## What ArcGIS gives you today
+
+You can already manage all of this through different ArcGIS tools and interfaces:
+
+1. **Portal > My content** lists and filters credentials, and lets you create them.
+1. **ArcGIS Location Platform** adds an enhanced search experience and more credential info, like usage reports.
+1. The **item page overview** of a credential lets you edit its metadata and tags, shows the privileges of the API key, and lets you share it with groups.
+1. The **item page settings** of a credential let you:
+    1. Edit its privileges: ArcGIS services and item access.
+    1. Manage its two API keys (shown partially) and its referrers.
+1. **Portal > Groups** lists, searches and filters your groups, and lets you create new ones.
+1. The **group page** lets you edit the group's details and shows the items shared with it.
+
+But every organization works in its own way (by customer, by team, by contract), and no general-purpose UI can fit every workflow perfectly. Because everything is available through the ArcGIS REST APIs, you can build a UI that fits yours.
+
+</Step>
+
+<Step id="goal" embed="https://www.rauljimenez.info/arcgis-credential-console/?mock" collapsed>
+
+## The end goal
+
+This is the dashboard GeoDataProvider is looking for: one place to organize credentials by customer, audit them and rotate API keys, with **fewer pages and far fewer clicks**.
+
+It is built only with ArcGIS REST JS in the browser. Try it: it runs here with fictional data.
+
+- Projects on the left are ArcGIS **groups**.
+- Each credential is an ArcGIS **item**, shared with its project and carefully tagged.
+
+<details>
+<summary>What does it add to what ArcGIS gives you today?</summary>
+
+- **Situation overview**: API keys, OAuth apps, tokens expiring soon and critical issues.
+- **Advanced search**: by customer name, tag, client ID, partial key…
+- **Needs triage**: credentials not assigned to any project yet.
+- **Tags grouped by family** in the UI.
+- **Items assigned to each key** grouped by tier.
+- **Customizable audit warnings**.
+- **Bulk actions**: add items to groups (projects), tag, revoke API keys, delete.
+- **Custom properties** per credential: owner, contact, deployment...
+
+And anything else the ArcGIS REST APIs let you do.
+
+</details>
+
+Find the [source code on GitHub](https://github.com/hhkaos/arcgis-credential-console).
+
+</Step>
+
+<Step id="mvp" outline view="preview" maximize="none" panelHeight={35} expanded>
+
+## The MVP
+
+In this demo we will build a **minimal**, **barebones UI** using ArcGIS REST JS to:
+
+- Add OAuth sign-in
+- Search groups and credentials
+- Display and manage groups
+- Display credentials
+- Manage API keys
+- Add items (credentials) to groups
+
+Everything it touches is either a <Hint id="group" label="group">A collection of items (and users) shared together. Here, one per customer project.</Hint> or an <Hint id="item" label="item">Any piece of content in ArcGIS: a map, a layer, a file… and **also a developer credential**.</Hint>. 
+
+> An API key is just an item with privileges and two keys.
+
+At the top, you can see <Hint id="steps" label="the steps ahead">You can open the index anytime. Use the icon at the bottom of this sidebar.</Hint>. The "Output" panel runs the finished MVP.
+
+</Step>
+
+<Step id="libraries" file="index.html" region="libs" collapsed>
+
+## Load ArcGIS REST JS
+
+[ArcGIS REST JS](https://developers.arcgis.com/arcgis-rest-js/) is a lightweight, modular JavaScript library for using the ArcGIS REST APIs in your browser and Node applications.
+
+This MVP is a plain HTML page: no bundler and no build step, so the code on screen is all there is.
+
+A CDN is great for a demo. In production you will likely install the packages from npm and use a bundler (Vite, webpack…): the code in the next steps doesn't change. See [other ways to install ArcGIS REST JS](https://developers.arcgis.com/arcgis-rest-js/install/#bundlers).
+
+ArcGIS REST JS is **split into small packages**, so you only load what you use. This app needs:
+* `arcgis-rest-request`: for sign-in and plain requests.
+* `arcgis-rest-portal`: to manage items, groups and users.
+* `arcgis-rest-developer-credentials`: to create, update and rotate API keys.
+
+The import map lets the code use their npm names, loaded from a CDN.
+
+The "Output" panel runs the finished MVP: sign in and try it with your account. Each of the next steps explains the ArcGIS REST JS code behind one part.
+
+</Step>
+
+<Step id="imports" file="main.js" region="imports" collapsed>
+
+## Import what you use
+
+`main.js` imports by npm name; the import map resolves each name to its CDN URL. With a bundler, the same lines work after `npm install`.
+
+The functions are grouped by what they manage: sign-in, the user, projects (**groups**), credentials (**items**) and the **API keys** inside them.
+
+<details>
+<summary>What does REST JS do for you?</summary>
+
+Each function wraps the REST API so you don't write `fetch` by hand:
+
+- Adds the token and `f=json` to every request, and encodes the parameters.
+- Throws an error you can `catch`. The REST API often answers HTTP 200 with the error inside the JSON. See [Error handling](https://developers.arcgis.com/arcgis-rest-js/error-handling/).
+- Some functions make more than one request: `ArcGISIdentityManager` runs the whole OAuth flow and refreshes the token; `shareItemWithGroup` checks your role in the group before sharing.
+- `SearchQueryBuilder` sends nothing: it only builds the query text.
+
+To see it in action, open your browser's developer tools, go to the **Network** tab, filter by `www` and check the REST API requests that ArcGIS REST JS sends.
+
+</details>
+
+<details>
+<summary>How much does it weigh?</summary>
+
+Named imports pay off with a bundler: **tree shaking** drops every function you don't import.
+
+- `request` alone: ~10 KB (min + gzip).
+- The 16 imports this app uses: ~15.5 KB.
+- The three packages in full: ~21.6 KB.
+
+Measured with esbuild, REST JS 4.11.0. The CDN in this demo serves whole packages, so the savings only show up once you bundle.
+
+</details>
+
+</Step>
+
+<Step id="sign-in" file="main.js" region="sign-in" collapsed>
+
+## Start sign-in
+
+When the user clicks the sign-in button, the app opens a popup where they sign in to <Hint id="portal" label="the portal">The ArcGIS authentication server that signs users in and issues tokens. Here it is an ArcGIS Location Platform account. The same flow works with ArcGIS Online and ArcGIS Enterprise: set the `portal` option to point REST JS at it.</Hint> that holds their account. With a valid access token, the app can manage *their* groups and API keys.
+
+[`ArcGISIdentityManager.beginOAuth2()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-request/ArcGISIdentityManager/) opens the ArcGIS sign-in page in a popup and returns a <Hint id="session" label="session">Holds the user's access token (30 minutes) and refresh token (2 weeks by default), and refreshes the access token for you.</Hint> once the popup finishes signing in. Its options, `oauthOptions`, live in `config.js`.
+
+- OAuth 2.0 with <Hint id="pkce" label="PKCE">Proof Key for Code Exchange: a one-time secret created in the browser replaces the client secret.</Hint> needs no backend and no client secret.
+- The session is what every REST JS call receives as `authentication`.
+- `serialize()` saves the session to <Hint id="storage" label="sessionStorage">It holds the token and the refresh token. Any script on the page can read browser storage, so one XSS steals the session. `sessionStorage` at least clears it when the tab closes; avoid `localStorage`.</Hint>, so a reload keeps you signed in.
+
+Try it in the Preview: press **Sign in with ArcGIS**, then **Cancel**. REST JS throws an `ArcGISAccessDeniedError`, and the app checks `error.name` against [`ErrorTypes`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-request/ErrorTypes/).
+
+<details>
+<summary>Which errors can REST JS throw?</summary>
+
+- `ArcGISRequestError`: the base error. It carries the REST API `code`, the `url` and the raw `response`.
+- `ArcGISAuthError`: invalid or expired token (codes 498/499). `retry()` sends the request again with a new session.
+- `ArcGISTokenRequestError`: getting or refreshing a token failed.
+- `ArcGISAccessDeniedError`: the user cancelled sign-in.
+
+Compare `error.name` with `ErrorTypes`, as in [Error handling](https://developers.arcgis.com/arcgis-rest-js/error-handling/).
+
+> **Note**: never log the whole error. Its `options` can hold credentials, like the password of a username/password session. Log `error.message` instead.
+
+</details>
+
+</Step>
+
+<Step id="config" file="config.js" region="config" view="console" panelHeight={35}>
+
+## Configure OAuth
+
+The portal must also know your app: create a developer credential ([**OAuth 2.0 credentials > For user authentication**](https://www.rauljimenez.info/arcgis-tutorials/arcgis-js-sdk-user-auth/#register-app)) with the right redirect URL and paste the **Client ID** here.
+
+<VarField name="clientId" label="Client ID" persist />
+
+- `portal`: where users sign in. The default works for ArcGIS Location Platform and ArcGIS Online; for ArcGIS Enterprise, use your portal's REST endpoint: `https://<host>/<webadaptor>/sharing/rest`.
+- `redirectUri`: the page the portal sends the popup back to. Register this exact URL in the credential.
+- `popup` (default true): sign in without leaving the app.
+
+See all [OAuth 2.0 options](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-request/IOAuth2Options/#Properties).
+
+`main.js` (`beginOAuth2`) and `callback.html` (`completeOAuth2`) import the same options, so both ends of the flow agree.
+
+> When the popup opens, the portal reads the client ID and the redirect URL from the popup's address bar. If the redirect URL isn't registered in the developer credential of that client ID, the portal refuses to show the sign-in form.
+
+</Step>
+
+<Step id="callback" file="callback.html" region="callback" collapsed>
+
+## Finish sign-in
+
+After sign-in, the portal sends the short-lived authorization code to your **redirect URI**: `callback.html`.
+
+[`ArcGISIdentityManager.completeOAuth2()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-request/ArcGISIdentityManager/) reads that authorization code from the URL, swaps it for a token, hands the session to the window that opened the popup and closes the popup.
+
+> **Note**: It takes the same options as `beginOAuth2()`: both import them from `config.js`.
+
+</Step>
+
+<Step id="get-self" file="main.js" region="get-self" view="console" panelHeight={35}>
+
+## Get user info
+
+[`getSelf()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-portal/getSelf/) is the first authenticated request: it returns the signed-in user and their organization in one call. 
+
+The app swaps **Sign in** for the user's full name and username.
+
+Most REST JS functions return the plain JSON of the REST API. The `console.log` shows it once: explore it in the **Console** tab.
+
+Try it in the Preview: press **Sign in with ArcGIS**.
+
+<details>
+<summary>Why "most"?</summary>
+
+Some functions add to the REST API response:
+
+- `searchGroups()` and `searchItems()` add `nextPage()` to fetch the next page of results.
+- `getApiKey()` and `createApiKey()` merge the item and the credential into one object.
+
+</details>
+
+</Step>
+
+<Step id="search-groups" file="main.js" region="search-groups" collapsed>
+
+## Search groups
+
+In the app, a **project** is a group tagged `project`. [`SearchQueryBuilder`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-portal/SearchQueryBuilder/) builds the query from code: `tags:project AND owner:<you>`.
+
+[`searchGroups()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-portal/searchGroups/) returns the matches, and the Projects column lists them.
+
+<details>
+<summary>Why not write the query string by hand?</summary>
+
+For a fixed query like this one, a string works. The builder pays off when:
+
+- **Values have spaces**: `match("my project")` becomes `tags:"my project"`. By hand, `tags:my project` only matches `my`.
+- **Filters are optional**: add each one inside an `if` instead of joining strings.
+- **Dates**: `.from(date).to(date)` turns `Date` objects into a `[start TO end]` range.
+
+```js
+const q = new SearchQueryBuilder().match(session.username).in("owner");
+if (tag) q.and().match(tag).in("tags");
+if (since) q.and().from(since).to(new Date()).in("modified");
+// owner:<you> AND tags:"my project" AND modified:[1767222000000 TO 1780264800000]
+```
+
+- **Groups and operators**: `startGroup()`/`endGroup()` add parentheses, and `or()` and `not()` work like `and()`. `not()` replaces `and()`: `.and().not()` logs a warning and drops the `NOT`.
+
+```js
+new SearchQueryBuilder()
+  .match(session.username).in("owner")
+  .and().startGroup()
+    .match("project").in("tags").or().match("demo").in("tags")
+  .endGroup()
+  .not().match("archived").in("tags");
+// owner:<you> AND (tags:project OR tags:demo) NOT tags:archived
+```
+
+- **Reuse**: `clone()` copies a base query, so you can add filters to the copy without changing the original.
+
+</details>
+
+</Step>
+
+<Step id="create-group" file="main.js" region="create-group" collapsed>
+
+## Create a group
+
+[`createGroup()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-portal/createGroup/) takes the group's title, tags and access, and returns the new group.
+
+The search index takes a few seconds to see new groups, so the app adds it to the list itself instead of searching again.
+
+</Step>
+
+<Step id="update-group" file="main.js" region="update-group" collapsed>
+
+## Update a group
+
+[`updateGroup()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-portal/updateGroup/) only needs the group's `id` and the fields that change. Rename a project in the Preview, then check **Groups** in your portal.
+
+</Step>
+
+<Step id="halfway" outline collapsed>
+
+## Halfway there
+
+Sign-in and projects are done: the same few functions search, create and update any **group**.
+
+Next, the credentials.
+
+</Step>
+
+<Step id="search-credentials" file="main.js" region="search-credentials" collapsed>
+
+## Search credentials
+
+Credentials are items, so they are found like any other item: [`searchItems()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-portal/searchItems/) with a [`SearchQueryBuilder`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-portal/SearchQueryBuilder/) query, here filtered to the credential type.
+
+- Every developer credential is an item of type `Application`.
+- API keys also carry the `APIToken` [<Hint id="typekeyword" label="type keyword">Type keywords describe the type and should logically apply to all items of that type.</Hint>](https://developers.arcgis.com/rest/users-groups-and-items/common-parameters/). like the one you sign in with, don't.
+
+> **Note**: `searchItems()` also finds any content you own: maps, layers, documents, etc.
+
+<details>
+<summary>What if an option is missing?</summary>
+
+The REST API sometimes supports a parameter that the function doesn't declare. Pass it in `params`: every REST JS function sends it as is.
+
+```js
+const response = await searchItems({
+  q,
+  authentication: session,
+  params: { bbox: "-10,35,5,44" }, // supported by the REST API, not declared by searchItems()
+});
+```
+
+Don't pass it at the top level: `searchItems({ q, bbox: "..." })` drops `bbox` without an error.
+
+If REST JS has no function for an endpoint, call [`request()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-request/request/) directly. It still adds the token and `f=json`, and throws on errors.
+
+</details>
+
+<details>
+<summary>More than 100 API keys?</summary>
+
+`num` returns 100 results at most. When there are more, the response includes `nextPage()`: it repeats the search from where the last page ended.
+
+```js
+let response = await searchItems({ q, num: 100, authentication: session });
+const results = [...response.results];
+while (response.nextPage) {
+  response = await response.nextPage();
+  results.push(...response.results);
+}
+```
+
+`nextPage()` reuses the same options (`q`, `num`, `authentication`), so every page sees the same items. `searchGroups()` works the same way.
+
+</details>
+
+</Step>
+
+<Step id="get-api-key" file="main.js" region="get-api-key" view="console" panelHeight={35}>
+
+## Read an API key
+
+The item says what a credential is; the credential itself (privileges, referrers, which key slots are active) lives in the **registered app**. [`getApiKey()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-developer-credentials/getApiKey/) reads both and merges them into one object.
+
+Sometimes REST JS returns more than the REST API reference documents. `isPersonalAPIToken` is in the response, but not in the [Registered App](https://developers.arcgis.com/rest/users-groups-and-items/registered-app/) reference. Log the response and explore it.
+
+The app also shows when each active key expires. The dates come from the item in the response, read directly rather than from the search index, so they are up to date.
+
+Try it in the Preview: press the **Info** icon of an API key and open the **Console** tab.
+
+<details>
+<summary>No function for what you want? Use `request()`</summary>
+
+Some data of special items lives in a REST endpoint that no REST JS function wraps. The expiration date of each API key is one: the item's `apiToken1ExpirationDate` and `apiToken2ExpirationDate` fields can be `-1` or out of date in search results.
+
+[`request()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-request/request/), from `arcgis-rest-request`, calls any endpoint with the same session: it adds the token and `f=json`, encodes the parameters (dates included) and throws on errors.
+
+```js
+import { request } from "@esri/arcgis-rest-request";
+
+const DAY = 24 * 60 * 60 * 1000;
+// Every API key of the organization expiring in this window, both slots, in one request
+const { items = [] } = await request(`${session.portal}/portals/self/apiTokens`, {
+  authentication: session,
+  params: {
+    num: 100,
+    startExpirationDate: new Date(Date.now() - 365 * DAY),
+    endExpirationDate: new Date(Date.now() + 400 * DAY),
+  },
+});
+// [{ itemId, apiToken: 1 | 2, expirationDate, title, owner, ... }]
+```
+
+</details>
+
+</Step>
+
+<Step id="create-api-key" file="main.js" region="create-api-key" collapsed>
+
+## Create an API key
+
+[`createApiKey()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-developer-credentials/createApiKey/), from `arcgis-rest-developer-credentials`, creates the credential item with its <Hint id="privileges" label="privileges">What the key can do: use services such as basemaps or geocoding, and access specific items.</Hint>, optional <Hint id="referrers" label="referrers">The websites allowed to use the key, e.g. `https://*.customer.com`. Avoid paths: browsers may strip them.</Hint> and expiration, and can generate its first API key.
+
+The response is the only time the key can be read: the app shows it once so you can copy it, and keeps only the item. Never log it or store it in the browser.
+
+Every key expires: here, in 30 days (one year at most).
+
+</Step>
+
+<Step id="update-item" file="main.js" region="update-item" collapsed>
+
+## Update the item
+
+An API key is an item, so its title, tags and summary change with the generic [`updateItem()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-portal/updateItem/). Only send the fields that change.
+
+These fields are safe to edit: they don't affect the API keys.
+
+</Step>
+
+<Step id="update-api-key" file="main.js" region="update-api-key" collapsed>
+
+## Update privileges and referrers
+
+What a key can do (**privileges**) and where it can be used from (**referrers**) are not item fields: they change with [`updateApiKey()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-developer-credentials/updateApiKey/). Each list replaces the previous one, so send it whole.
+
+Careful: changing privileges or referrers invalidates the existing keys. Customers need new ones.
+
+</Step>
+
+<Step id="rotate-api-key" file="main.js" region="rotate-api-key" collapsed>
+
+## Rotate an API key
+
+Each credential has two key slots, so keys rotate without downtime. [`getApiKey()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-developer-credentials/getApiKey/) tells which slot is in use, then:
+
+1. [`updateApiKey()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-developer-credentials/updateApiKey/) generates a new key in the free slot.
+2. The customer switches to the new key.
+3. [`invalidateApiKey()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-developer-credentials/invalidateApiKey/) revokes the old one.
+
+</Step>
+
+<Step id="clean-up" file="main.js" region="clean-up" collapsed>
+
+## Clean up
+
+[`removeItem()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-portal/removeItem/) deletes an item, and [`removeGroup()`](https://developers.arcgis.com/arcgis-rest-js/api-reference/arcgis-rest-portal/removeGroup/) deletes a group. Deleting a group keeps its items in your content, so remove items first if you want both gone.
+
+</Step>
+
+<Step id="done" outline view="preview">
+
+## Congratulations, you are done!
+
+With a handful of REST JS functions you have the skeleton of Credential Console: sign-in, groups as projects, and API keys as items you create, update, rotate and organize.
+
+The full app adds audits, usage and more on top of the same calls.
+
+[Source code of the full app](https://github.com/hhkaos/arcgis-credential-console)
+
+</Step>
+
+<Outro>
+
+Questions?
+
+- About this demo/tutorial: use [the issues on this repo](https://github.com/hhkaos/arcgis-tutorials/issues).
+- For general questions about ArcGIS REST JS: use [its forum at Esri Community](https://community.esri.com/en/categories/arcgis-rest-js).
+
+Check the [source code of the full reference app on GitHub](https://github.com/hhkaos/arcgis-credential-console).
+
+</Outro> 

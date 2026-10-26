@@ -1,0 +1,5 @@
+$ VERBOSE=1 python create_api_key.py
+{
+  "access_token": "u7Qx2PfLk-Y9wd_example-app-token",
+  "expires_in": 7200
+}

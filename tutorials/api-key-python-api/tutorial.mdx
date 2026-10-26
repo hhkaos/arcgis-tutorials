@@ -1,0 +1,244 @@
+---
+title: Create and rotate an API key with the ArcGIS API for Python
+subtitle: "Authentication: A Practical Approach to Security in ArcGIS | Esri European DevTech Summit 2026"
+logo: arcgis-api-for-python.svg
+description: Automate API key creation and rotation in Python or a notebook with the arcgis package (Item.register, Item.generate_api_token), which wraps the four REST requests.
+tags: [API keys, Create credentials, Rotate keys, Server-side only, Python, ArcGIS API for Python, ArcGIS Online, ArcGIS Enterprise, ArcGIS Location Platform, EuroDevTech26]
+ask: [author, chatgpt, claude, { label: "Esri's Ask AI", url: "https://developers.arcgis.com/" }]
+level: Intermediate
+duration: 15 min
+updated: 2026-10-26
+order: 4
+next: python-app-auth
+preview: off
+codeWrap: true
+family: api-keys
+familyLabel: ArcGIS API for Python
+files: ["create_api_key.py", "requirements.txt", ".env.example", "rotate_api_key.py", ".gitignore"]
+include: [".env.example", ".gitignore"]
+---
+
+<Intro collapsed>
+
+## About this demo
+
+You will build two scripts with the [ArcGIS API for Python](https://developers.arcgis.com/python/):
+
+* `create_api_key.py` creates the API key credentials and generates the first key, in slot 1.
+* `rotate_api_key.py` rotates that key without downtime, using the second slot.
+
+Each `Item` method they call wraps one REST request; the [REST API tutorial](../api-key-rest/) shows them one by one.
+
+<details>
+<summary>Check prerequisites</summary>
+<p>An ArcGIS Location Platform, ArcGIS Online, or ArcGIS Enterprise 11.5+ account with a Creator user type or higher and the <strong>Generate API keys</strong> and <strong>Assign privileges to OAuth 2.0 applications</strong> privileges. Ideally a service user with only those.</p>
+<p>Python 3.10+, <code>arcgis</code> 2.4.2+ and <code>python-dotenv</code>.</p>
+</details>
+
+> The Result pane shows output captured earlier, with made-up ids and keys. Nothing on this page sends a request.
+
+</Intro>
+
+<Step id="install" file="requirements.txt" collapsed>
+
+## Install the package
+
+Install `arcgis` and `python-dotenv` in a virtual environment, so they don't clash with other versions on your machine:
+
+```sh
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -c "import arcgis; print(arcgis.__version__)"
+```
+
+<details>
+<summary>Version requirements</summary>
+<p>The developer credentials methods need <code>arcgis</code> 2.4.2 or later, which needs Python 3.10 or later (3.11 or later for <code>arcgis</code> 2.4.3).</p>
+</details>
+
+</Step>
+
+<Step id="config" file=".env.example" region="config" collapsed>
+
+## Configure the scripts
+
+Copy `.env.example` to `.env` and fill it in. `.gitignore` keeps it out of your repository.
+
+`GIS` takes the portal's <Hint id="portal-home" label="home URL">`https://www.arcgis.com` for ArcGIS Online and ArcGIS Location Platform, `https://<host>/<web-adaptor>` for ArcGIS Enterprise. Not the `/sharing/rest` URL the REST API uses.</Hint>:
+
+<VarField name="portalHome" label="Portal URL" placeholder="https://www.arcgis.com" persist />
+
+The scripts sign in with <Hint id="app-credentials" label="app credentials">Backend jobs can't sign in as you: a username and password don't work with SAML/SSO or MFA. Create the app credentials in the portal as a service user and assign them that user's privileges. They are not the client ID and secret of the API key item the script creates.</Hint>, not as you:
+
+<VarField name="appClientId" label="App credentials client ID" persist />
+<VarField name="appClientSecret" label="App credentials client secret" secret />
+
+> **Keep the `client_secret` in a secret manager**, and create the app credentials as a service user with only the privileges these scripts need. With admin privileges, the secret can do almost as much damage as your password.
+
+<details>
+<summary>Why the app credentials need their owner's privileges</summary>
+<p>Creating and rotating keys with app credentials needs their owner's user privileges. The secret can't sign in or change your password, but it can do whatever those privileges allow.</p>
+<p>In production, the same variables can come from the environment or a secret manager instead of <code>.env</code>.</p>
+</details>
+
+</Step>
+
+<Step id="imports" file="create_api_key.py" region="imports" collapsed>
+
+## Import the modules
+
+* `GIS`: signs in and reaches the portal's content.
+* `ItemProperties` and `ItemTypeEnum`: describe the credential item.
+* `load_dotenv`: loads `.env` into `os.environ`.
+
+</Step>
+
+<Step id="sign-in" file="create_api_key.py" region="sign-in" collapsed>
+
+## Sign in
+
+With `client_id` and `client_secret`, `GIS` gets an app token and reuses it for every call that follows.
+
+<details>
+<summary>Other ways to sign in</summary>
+<table>
+<tr><th>Method</th><th>Use it for</th><th>Limits</th></tr>
+<tr><td>Username and password</td><td>Trying things on your machine</td><td>Doesn't work with SAML/SSO or MFA accounts; the password ends up in code or the environment.</td></tr>
+<tr><td><a href="https://developers.arcgis.com/documentation/security-and-authentication/user-authentication/">User authentication</a> (OAuth 2.0, <code>client_id</code> alone)</td><td>Interactive scripts and apps</td><td>The refresh token expires, and changing the password invalidates it.</td></tr>
+<tr><td><a href="https://developers.arcgis.com/documentation/security-and-authentication/app-authentication/">App credentials</a> <br/>(used here)</td><td>Backend jobs, such as scheduled rotation</td><td>They need their owner's user privileges, and the <code>client_secret</code> can do whatever those privileges allow. Both scripts use them.</td></tr>
+</table>
+</details>
+
+</Step>
+
+<Step id="add-item" file="create_api_key.py" region="add-item" collapsed>
+
+## Create the credential item
+
+API key credentials are items of type `Application`. `title`, `tags` and `snippet` match the wizard's [**Item details**](../api-key-portal/#details) screen. `.result()` waits for the item.
+
+<details>
+<summary>REST request</summary>
+<p><code>folder.add</code> sends <code>{"content/users/{user}/addItem"}</code> and returns a job.</p>
+</details>
+
+</Step>
+
+<Step id="register" file="create_api_key.py" region="register" collapsed>
+
+## Register the item as an app
+
+`item.register` sets what every key of this item can do:
+
+- `privileges`: the services the key can call, one per toggle on the wizard's [**Privileges**](../api-key-portal/#register) screen. See the [privileges reference](https://developers.arcgis.com/documentation/security-and-authentication/reference/privileges/).
+- `http_referers`: the domains allowed to use the key. Empty here so you can test from scripts or Postman.
+
+<VarField name="privileges" label="Privileges (comma-separated)" placeholder="premium:user:basemaps,premium:user:geocode" persist />
+
+> **Set your app's URL as a referrer before you ship a public app.** Without one, anyone who copies the key can use it from any site, billed to you. You can't change referrers later without invalidating the key.
+
+<details>
+<summary>More details</summary>
+<ul>
+<li>Sends <code>oauth2/registerApp</code>.</li>
+<li><a href="../api-key-portal/#item-access">Access to an item</a> is the privilege <code>portal:app:access:item:&lt;itemId&gt;</code>.</li>
+<li><code>app_type</code> and <code>redirect_uris</code> come from OAuth 2.0 credentials: <code>redirect_uris</code> is where <a href="https://developers.arcgis.com/documentation/security-and-authentication/user-authentication/">user authentication</a> sends users back after they sign in. <code>registerApp</code> fails without them, but their values don't affect the key.</li>
+<li>The item now has a <code>client_id</code> and <code>client_secret</code> in <code>item.app_info</code>. The secret can generate new keys: keep it out of apps.</li>
+</ul>
+</details>
+
+</Step>
+
+<Step id="expiration" file="create_api_key.py" region="expiration" collapsed>
+
+## Set the expiration of slot 1
+
+Each item has two key slots, each with its own expiration date: at most one year ahead, in epoch milliseconds. Set it **before** generating the key: changing it later invalidates the key.
+
+<details>
+<summary>REST request</summary>
+<p><code>item.update</code> sends <code>{"content/users/{user}/items/{id}/update"}</code> with the date as an item property.</p>
+</details>
+
+</Step>
+
+<Step id="generate" file="create_api_key.py" region="generate" output="create.txt" view="result">
+
+## Generate the API key
+
+The response's `access_token` is the key. The portal shows it only once: deploy it to your app. `state.json` keeps the item ID and slot for the rotation script, but not the key.
+
+<details>
+<summary>More details</summary>
+<ul>
+<li><code>item.generate_api_token</code> sends <code>oauth2/token</code> with the item's <code>client_id</code> and <code>client_secret</code>, <code>grant_type=client_credentials</code>, <code>apiToken=1</code> and <code>regenerateApiToken=false</code>.</li>
+<li>Organization administrators can do all of the above in one call with <code>gis.admin.developer_credentials.create(…)</code>. <code>gis.admin</code> exists only for the <code>org_admin</code> role, so this tutorial uses the item methods, which every Creator can call.</li>
+</ul>
+</details>
+
+</Step>
+
+<Step id="rotate-config" file="rotate_api_key.py" region="rotate-config" collapsed>
+
+## Rotate: start from the key in production
+
+Rotation keeps a valid key at all times: generate a key in the free slot, deploy it, then invalidate the old one.
+
+The script signs in with the same `.env` and reads the item and current slot from `state.json`.
+
+</Step>
+
+<Step id="find-slot" file="rotate_api_key.py" region="find-slot" collapsed>
+
+## Find the free slot
+
+The new key goes into the slot that isn't in production. Without `state.json`, <Hint id="key-slot" label="the key tells you its slot">A key ends in `AT1_` or `AT2_` plus eight characters.</Hint>.
+
+</Step>
+
+<Step id="rotate-generate" file="rotate_api_key.py" region="rotate-generate" collapsed>
+
+## Generate the key in the new slot
+
+Set the slot's expiration first, then generate with `regenerate=True`: without it, a slot that already holds a key refuses a new one. Regenerating kills the old key in that slot immediately, so never regenerate the slot in production.
+
+<details>
+<summary>Why set the expiration again</summary>
+<p><code>generate_api_token</code> only writes the date when the slot has none. <code>regenerate=True</code> sends <code>regenerateApiToken=true</code>.</p>
+</details>
+
+</Step>
+
+<Step id="deploy" file="rotate_api_key.py" region="deploy" output="rotate-deploy.txt" view="result">
+
+## Deploy the new key
+
+Put the new key in production. The old key stays valid until you continue.
+
+</Step>
+
+<Step id="invalidate" file="rotate_api_key.py" region="invalidate" output="rotate.txt" view="result">
+
+## Invalidate the old key
+
+`Item` has no method to invalidate a key, so the script uses `DeveloperCredential.revoke` with the old slot, then saves the new slot to `state.json` for the next rotation.
+
+<details>
+<summary>If <code>gis.admin.developer_credentials</code> returns <code>None</code></summary>
+<p>Despite its name, <code>gis.admin</code> doesn't always need an administrator: on ArcGIS Online it works for app credentials that carry their owner's user privileges. With fewer privileges it may return <code>None</code>. Then send <code>oauth2/revokeToken</code> yourself:</p>
+<pre><code>{`app = item.app_info
+gis.session.post(
+    f"{gis.url}/sharing/rest/oauth2/revokeToken",
+    data={"f": "json", "client_id": app["client_id"],
+          "client_secret": app["client_secret"], "apiToken": current_slot},
+)`}</code></pre>
+</details>
+
+</Step>
+
+<Outro>
+
+API keys suit public apps. A backend script can authenticate as an application instead: [authenticate a Python script with OAuth credentials](../python-app-auth/).
+
+</Outro>

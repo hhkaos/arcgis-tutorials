@@ -1,0 +1,4 @@
+{
+  "success": true
+}
+Old key in slot 1 invalidated: true
