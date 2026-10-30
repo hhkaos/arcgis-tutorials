@@ -26,6 +26,17 @@ tagGroups:
     - { name: cURL, logo: curl.svg }
   Environment: [Browser, Server-side only]
   Event: [EuroDevTech26]
+inject:
+  head: |
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q158HGSZ52"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-Q158HGSZ52');
+    </script>
 ---
 
 <TutorialFilter />
